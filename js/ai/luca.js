@@ -37,6 +37,18 @@ export class LucaAI extends AIOpponent {
   decideBet(handStrength, threatLevel, currentBet, opponentBet, chips, settings) {
     const mask = this.getActiveConfig();
     const agg = mask.aggressiveness;
+    if (mask.id === 'general' && threatLevel >= 0.25 && handStrength < 0.55 && opponentBet > currentBet) {
+      return { action: 'fold' };
+    }
+    if (mask.id === 'maiden' && opponentBet > currentBet && handStrength > 0.25) {
+      return { action: 'call' };
+    }
+    if (mask.id === 'king' && handStrength < 0.35 && opponentBet > currentBet + settings.ante) {
+      return { action: 'fold' };
+    }
+    if (threatLevel >= 0.35 && handStrength < 0.5 && opponentBet > currentBet) {
+      return { action: 'fold' };
+    }
     if (handStrength < 0.2 && opponentBet > currentBet + settings.ante * 2) {
       return { action: 'fold' };
     }
@@ -50,10 +62,9 @@ export class LucaAI extends AIOpponent {
     return { action: 'check' };
   }
 
-  decideAccusation(seenTells) {
+  decideAccusation(seenTells, threshold = null) {
     const mask = this.getActiveConfig();
-    const threshold = mask.accusationThreshold;
-    return super.decideAccusation(seenTells, threshold);
+    return super.decideAccusation(seenTells, threshold ?? mask.accusationThreshold);
   }
 
   decideDraw(handStrength) {

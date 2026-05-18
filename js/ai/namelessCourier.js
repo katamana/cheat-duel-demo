@@ -33,6 +33,11 @@ export class NamelessCourierAI extends AIOpponent {
 
   decideBet(handStrength, threatLevel, currentBet, opponentBet, chips, settings) {
     // balanced pattern
+    const mirroredPressure = this.getMirroredPreference().length > 0 ? 0.08 : 0;
+    const effectiveThreat = threatLevel + mirroredPressure;
+    if (effectiveThreat >= 0.35 && handStrength < 0.45 && opponentBet > currentBet) {
+      return { action: 'fold' };
+    }
     if (handStrength < 0.25 && opponentBet > currentBet + settings.ante * 2) {
       return { action: 'fold' };
     }
@@ -46,8 +51,8 @@ export class NamelessCourierAI extends AIOpponent {
     return { action: 'check' };
   }
 
-  decideAccusation(seenTells) {
+  decideAccusation(seenTells, threshold = 0.5) {
     // lower threshold than base
-    return super.decideAccusation(seenTells, 0.5);
+    return super.decideAccusation(seenTells, threshold);
   }
 }

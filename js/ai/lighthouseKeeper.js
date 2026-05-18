@@ -16,12 +16,15 @@ export class LighthouseKeeperAI extends AIOpponent {
     return null;
   }
 
-  decideAccusation(seenTells) {
-    return super.decideAccusation(seenTells, this.config.accusationThreshold);
+  decideAccusation(seenTells, threshold = this.config.accusationThreshold) {
+    return super.decideAccusation(seenTells, threshold);
   }
 
   decideBet(handStrength, threatLevel, currentBet, opponentBet, chips, settings) {
     // tight pattern: rarely raises, often checks/calls small
+    if (threatLevel >= 0.35 && handStrength < 0.6 && opponentBet > currentBet) {
+      return { action: 'fold' };
+    }
     if (opponentBet > currentBet + settings.ante * 3 && handStrength < 0.5) {
       return { action: 'fold' };
     }

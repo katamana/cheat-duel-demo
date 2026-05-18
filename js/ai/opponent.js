@@ -18,6 +18,9 @@ export class AIOpponent {
 
   decideBet(handStrength, threatLevel, currentBet, opponentBet, chips, settings) {
     const agg = this.config.aggressiveness || 0.5;
+    if (threatLevel >= 0.35 && handStrength < 0.45 && opponentBet > currentBet) {
+      return { action: 'fold' };
+    }
     if (handStrength < 0.2 && opponentBet > currentBet + settings.ante * 2) {
       return { action: 'fold' };
     }
