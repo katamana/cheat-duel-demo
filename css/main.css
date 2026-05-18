@@ -1,0 +1,966 @@
+/* ============================================
+   信使 — Phase 4 Visual Polish
+   Old book / travel diary aesthetic
+   ============================================ */
+
+/* ---------- Header ---------- */
+#game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: rgba(10, 20, 40, 0.9);
+  border-bottom: 1px solid var(--color-accent-gold);
+  color: var(--color-accent-warm);
+  position: relative;
+  z-index: 1;
+  backdrop-filter: blur(4px);
+}
+
+#game-header h1 {
+  color: var(--color-accent-gold);
+  font-size: 22px;
+  margin: 0;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(201, 169, 97, 0.3);
+}
+
+#match-info {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--color-accent-warm);
+  opacity: 0.9;
+}
+
+/* ---------- Game Main ---------- */
+#game-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+  overflow-y: auto;
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- Opponent Area ---------- */
+#opponent-area {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 14px;
+}
+
+/* Opponent portrait: CSS-only silhouette with scene atmosphere */
+#opponent-portrait {
+  width: 120px;
+  height: 160px;
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+  border: 1px solid var(--color-accent-gold);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-faded);
+  font-size: 12px;
+  text-align: center;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 0 12px rgba(201, 169, 97, 0.15);
+}
+
+/* Silhouette shape using pseudo-element */
+#opponent-portrait::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 90px;
+  background: linear-gradient(180deg, #2c2418 0%, #1a1510 100%);
+  border-radius: 30px 30px 0 0;
+  opacity: 0.7;
+}
+
+/* Head circle */
+#opponent-portrait::after {
+  content: '';
+  position: absolute;
+  bottom: 78px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 32px;
+  background: #2c2418;
+  border-radius: 50%;
+  opacity: 0.7;
+}
+
+/* Scene atmosphere: warm glow behind silhouette */
+#opponent-portrait .scene-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 70%, rgba(212, 165, 116, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+#opponent-info {
+  flex: 1;
+  min-width: 0;
+}
+
+#opponent-name {
+  font-size: 20px;
+  color: var(--color-accent-gold);
+  margin-bottom: 6px;
+  font-family: var(--font-title);
+  letter-spacing: 1px;
+}
+
+#opponent-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 14px;
+  color: var(--color-text-faded);
+  margin-bottom: 8px;
+}
+
+#opponent-stats b {
+  color: var(--color-text-main);
+  font-family: var(--font-ui);
+}
+
+/* ---------- Card Areas ---------- */
+.card-area {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding: 14px;
+  min-height: 100px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Card Design: Old Paper ---------- */
+.card {
+  width: 64px;
+  height: 90px;
+  background: var(--color-card-face);
+  border: 1px solid #c4b59a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-family: var(--font-ui);
+  color: var(--color-text-main);
+  user-select: none;
+  position: relative;
+  transition: transform var(--transition-medium), box-shadow var(--transition-medium);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  /* Worn edge effect via slightly irregular border-radius */
+  border-radius: 3px 5px 4px 6px;
+}
+
+/* Paper texture on card face */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Card back: ornate pattern */
+.card.back {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      #2c2418,
+      #2c2418 4px,
+      #3d3225 4px,
+      #3d3225 8px
+    );
+  color: var(--color-accent-gold);
+  border-color: var(--color-accent-gold);
+  font-size: 20px;
+  text-shadow: 0 0 4px rgba(201, 169, 97, 0.5);
+}
+
+.card.back::before {
+  display: none;
+}
+
+/* Center medallion on card back */
+.card.back::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--color-accent-gold);
+  border-radius: 50%;
+  opacity: 0.6;
+}
+
+.card .suit {
+  font-size: 24px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.card .rank {
+  font-size: 17px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+/* Selected card: lift with gold glow */
+.card.selected {
+  transform: translateY(-12px) scale(1.05);
+  box-shadow: var(--shadow-card-lift), 0 0 0 2px var(--color-accent-gold);
+  border-color: var(--color-accent-gold);
+  z-index: 2;
+}
+
+/* Card entrance animation */
+.card.deal-in {
+  animation: cardDealIn 0.4s ease-out backwards;
+}
+
+@keyframes cardDealIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.8) rotate(-5deg);
+  }
+  70% {
+    transform: translateY(2px) scale(1.02) rotate(1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0);
+  }
+}
+
+/* Card hover (only in interactive phases) */
+.card[data-interactive="true"]:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  cursor: pointer;
+}
+
+/* ---------- Public Info ---------- */
+#public-area {
+  padding: 12px 16px;
+}
+
+#public-info {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  align-items: center;
+  padding: 8px;
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+
+#pot-display {
+  font-size: 22px;
+  color: var(--color-accent-gold);
+  font-weight: bold;
+  font-family: var(--font-ui);
+  text-shadow: 0 0 8px rgba(201, 169, 97, 0.3);
+  transition: all var(--transition-medium);
+}
+
+#pot-display.changed {
+  animation: potGlow 0.5s ease;
+}
+
+@keyframes potGlow {
+  0% { text-shadow: 0 0 8px rgba(201, 169, 97, 0.3); }
+  50% { text-shadow: 0 0 24px rgba(201, 169, 97, 0.7); transform: scale(1.1); }
+  100% { text-shadow: 0 0 8px rgba(201, 169, 97, 0.3); transform: scale(1); }
+}
+
+#round-display {
+  font-family: var(--font-ui);
+  color: var(--color-text-faded);
+}
+
+#phase-display {
+  font-family: var(--font-ui);
+}
+
+/* ---------- Tell Panel ---------- */
+#tell-panel {
+  max-height: 140px;
+  overflow-y: auto;
+  font-size: 13px;
+  margin-top: 8px;
+  padding: 4px;
+}
+
+.tell-entry {
+  padding: 6px 10px;
+  margin: 4px 0;
+  background: rgba(201, 169, 97, 0.08);
+  border-left: 3px solid var(--color-accent-gold);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: var(--color-text-main);
+  line-height: 1.5;
+  position: relative;
+  animation: tellSlideIn 0.4s ease-out;
+}
+
+@keyframes tellSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.tell-entry.noise {
+  border-left-color: var(--color-text-faded);
+  opacity: 0.75;
+  background: rgba(107, 93, 74, 0.06);
+}
+
+/* Real tell glow effect */
+.tell-entry:not(.noise) {
+  box-shadow: 0 0 8px rgba(232, 201, 137, 0.1);
+}
+
+/* ---------- Player Area ---------- */
+#player-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+
+#player-stats {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+
+#player-stats b {
+  font-family: var(--font-ui);
+  color: var(--color-text-main);
+}
+
+/* ---------- Cheat Buttons ---------- */
+#cheat-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.cheat-btn {
+  font-size: 12px;
+  padding: 7px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(244, 232, 208, 0.7);
+  transition: all var(--transition-fast);
+}
+
+.cheat-btn.active {
+  background: var(--color-accent-gold);
+  color: var(--color-bg-deep);
+  box-shadow: 0 0 10px rgba(201, 169, 97, 0.4);
+  transform: translateY(-2px);
+  font-weight: bold;
+}
+
+.cheat-btn.cooldown {
+  opacity: 0.35;
+  text-decoration: line-through;
+  cursor: not-allowed;
+  background: rgba(244, 232, 208, 0.4);
+}
+
+/* ---------- Controls ---------- */
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  padding: 10px;
+}
+
+/* ---------- Log Panel ---------- */
+#log-panel {
+  max-height: 100px;
+  overflow-y: auto;
+  font-size: 12px;
+  padding: 10px;
+  background: rgba(10, 20, 40, 0.6);
+  border: 1px solid rgba(201, 169, 97, 0.25);
+  border-radius: var(--radius-md);
+  color: var(--color-accent-warm);
+  font-family: var(--font-ui);
+  line-height: 1.6;
+}
+
+.log-entry {
+  margin: 3px 0;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(201, 169, 97, 0.08);
+  opacity: 0.9;
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+  opacity: 1;
+  color: var(--color-tell-glow);
+}
+
+/* ---------- Modal / Accusation ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 20, 40, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.modal-content {
+  background: var(--color-bg-paper);
+  border: 2px solid var(--color-accent-gold);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  box-shadow: var(--shadow-gold-strong), 0 20px 60px rgba(0,0,0,0.4);
+  animation: modalSlideUp 0.4s ease;
+  position: relative;
+}
+
+@keyframes modalSlideUp {
+  0% { opacity: 0; transform: translateY(30px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Decorative corner ornaments on modal */
+.modal-content::before,
+.modal-content::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-accent-gold);
+}
+
+.modal-content::before {
+  top: 8px;
+  left: 8px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.modal-content::after {
+  bottom: 8px;
+  right: 8px;
+  border-left: none;
+  border-top: none;
+}
+
+.modal-content h2 {
+  color: var(--color-danger);
+  margin-bottom: 16px;
+  font-size: 24px;
+  letter-spacing: 1px;
+}
+
+.modal-content p {
+  color: var(--color-text-faded);
+  margin-bottom: 12px;
+}
+
+#accusation-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+#accusation-options button {
+  width: 100%;
+  text-align: center;
+  padding: 10px;
+  font-size: 14px;
+}
+
+/* ---------- Narrative Overlay ---------- */
+#narrative-overlay {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, #0a1428 0%, #122040 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 40px;
+  text-align: center;
+  animation: narrativeFadeIn 0.8s ease;
+}
+
+@keyframes narrativeFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Subtle stars in narrative overlay */
+#narrative-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 10% 20%, var(--color-star-dim), transparent),
+    radial-gradient(1px 1px at 80% 30%, var(--color-star-dim), transparent),
+    radial-gradient(2px 2px at 50% 70%, var(--color-star), transparent),
+    radial-gradient(1px 1px at 30% 80%, var(--color-star-dim), transparent),
+    radial-gradient(1.5px 1.5px at 90% 60%, var(--color-star), transparent);
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+#narrative-overlay .narrative-text {
+  color: var(--color-accent-warm);
+  font-size: 18px;
+  line-height: 1.9;
+  max-width: 600px;
+  white-space: pre-line;
+  font-family: var(--font-body);
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 0 20px rgba(212, 165, 116, 0.2);
+  animation: textReveal 1s ease 0.3s both;
+}
+
+@keyframes textReveal {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+#narrative-overlay button {
+  margin-top: 32px;
+  padding: 10px 28px;
+  font-size: 15px;
+  position: relative;
+  z-index: 1;
+  animation: textReveal 1s ease 0.6s both;
+}
+
+/* ---------- Menu Screen ---------- */
+#menu-screen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, #0a1428 0%, #122040 50%, #0d1f33 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  gap: 16px;
+}
+
+/* Menu starfield */
+#menu-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(2px 2px at 15% 25%, var(--color-star), transparent),
+    radial-gradient(1.5px 1.5px at 75% 15%, var(--color-star-dim), transparent),
+    radial-gradient(2px 2px at 45% 65%, var(--color-star), transparent),
+    radial-gradient(1px 1px at 85% 75%, var(--color-star-dim), transparent),
+    radial-gradient(1.5px 1.5px at 25% 85%, var(--color-star), transparent),
+    radial-gradient(1px 1px at 65% 45%, var(--color-star-dim), transparent);
+  background-repeat: repeat;
+  background-size: 800px 600px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+#menu-screen h1 {
+  font-size: 52px;
+  color: var(--color-accent-gold);
+  margin-bottom: 8px;
+  letter-spacing: 6px;
+  text-shadow: 0 0 30px rgba(201, 169, 97, 0.4);
+  position: relative;
+  z-index: 1;
+}
+
+#menu-screen .subtitle {
+  color: var(--color-text-faded);
+  font-size: 16px;
+  margin-bottom: 32px;
+  font-style: italic;
+  position: relative;
+  z-index: 1;
+  opacity: 0.9;
+}
+
+.level-select {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 320px;
+  position: relative;
+  z-index: 1;
+}
+
+.level-btn {
+  font-size: 16px;
+  padding: 14px;
+  text-align: left;
+  background: rgba(244, 232, 208, 0.08);
+  border: 1px solid rgba(201, 169, 97, 0.3);
+  color: var(--color-accent-warm);
+  transition: all var(--transition-medium);
+  position: relative;
+}
+
+.level-btn:hover {
+  background: rgba(244, 232, 208, 0.15);
+  border-color: var(--color-accent-gold);
+  transform: translateX(4px);
+  box-shadow: var(--shadow-gold-soft);
+}
+
+.level-btn .level-name {
+  font-weight: bold;
+  display: block;
+  color: var(--color-accent-gold);
+  font-size: 17px;
+  margin-bottom: 4px;
+}
+
+.level-btn .level-desc {
+  font-size: 12px;
+  color: var(--color-text-faded);
+  display: block;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* ---------- Showdown Animation Helpers ---------- */
+.showdown-flash {
+  animation: showdownFlash 0.6s ease;
+}
+
+@keyframes showdownFlash {
+  0% { box-shadow: 0 0 0 rgba(201, 169, 97, 0); }
+  50% { box-shadow: 0 0 30px rgba(201, 169, 97, 0.5); }
+  100% { box-shadow: 0 0 0 rgba(201, 169, 97, 0); }
+}
+
+/* Opponent cards reveal animation */
+.card.reveal {
+  animation: cardReveal 0.5s ease;
+}
+
+@keyframes cardReveal {
+  0% { transform: rotateY(90deg); opacity: 0.5; }
+  100% { transform: rotateY(0); opacity: 1; }
+}
+
+/* Leak meter warning */
+.leak-warning {
+  animation: leakPulse 1.5s ease infinite;
+}
+
+@keyframes leakPulse {
+  0%, 100% { color: var(--color-danger); }
+  50% { color: #c44; }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+  #game-header h1 {
+    font-size: 18px;
+    letter-spacing: 1px;
+  }
+
+  #opponent-area {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #opponent-portrait {
+    width: 90px;
+    height: 110px;
+  }
+
+  #opponent-portrait::before {
+    width: 44px;
+    height: 60px;
+  }
+
+  #opponent-portrait::after {
+    width: 24px;
+    height: 24px;
+    bottom: 52px;
+  }
+
+  #opponent-name {
+    text-align: center;
+    font-size: 18px;
+  }
+
+  #opponent-stats {
+    justify-content: center;
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .card {
+    width: 52px;
+    height: 74px;
+    font-size: 15px;
+  }
+
+  .card .suit {
+    font-size: 20px;
+  }
+
+  .card .rank {
+    font-size: 14px;
+  }
+
+  .card-area {
+    gap: 6px;
+    padding: 10px;
+    min-height: 80px;
+  }
+
+  #public-info {
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  #pot-display {
+    font-size: 18px;
+  }
+
+  #player-stats {
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .cheat-btn {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+
+  #controls {
+    gap: 6px;
+  }
+
+  button {
+    padding: 7px 12px;
+    font-size: 13px;
+  }
+
+  #menu-screen h1 {
+    font-size: 36px;
+    letter-spacing: 3px;
+  }
+
+  #menu-screen .subtitle {
+    font-size: 14px;
+    padding: 0 20px;
+    text-align: center;
+  }
+
+  .level-select {
+    width: 280px;
+  }
+
+  .level-btn {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .level-btn .level-name {
+    font-size: 15px;
+  }
+
+  #tell-panel {
+    max-height: 100px;
+  }
+
+  .tell-entry {
+    font-size: 12px;
+    padding: 5px 8px;
+  }
+
+  #log-panel {
+    max-height: 80px;
+    font-size: 11px;
+  }
+
+  .modal-content {
+    padding: 20px;
+    max-width: 340px;
+  }
+
+  .modal-content h2 {
+    font-size: 20px;
+  }
+
+  #narrative-overlay .narrative-text {
+    font-size: 16px;
+    line-height: 1.8;
+    padding: 0 10px;
+  }
+}
+
+/* Very narrow screens */
+@media (max-width: 400px) {
+  .card {
+    width: 44px;
+    height: 62px;
+    font-size: 13px;
+  }
+
+  .card .suit {
+    font-size: 16px;
+  }
+
+  .card .rank {
+    font-size: 12px;
+  }
+
+  .card-area {
+    gap: 4px;
+  }
+
+  #game-main {
+    padding: 10px;
+    gap: 8px;
+  }
+}
+
+/* ============================================
+   Opponent Scene Differentiation
+   ============================================ */
+
+/* --- Lighthouse Keeper: 沉钟星 --- */
+#opponent-portrait.scene-lighthouse_keeper {
+  background: linear-gradient(180deg, #0d1b2a 0%, #1b3a4b 55%, #2c5f6f 100%);
+  border-color: #5a9aaa;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 0 14px rgba(90, 154, 170, 0.3);
+}
+
+#opponent-portrait.scene-lighthouse_keeper::before {
+  background: linear-gradient(180deg, #3d2c18 0%, #1a1510 100%);
+  opacity: 0.75;
+}
+
+#opponent-portrait.scene-lighthouse_keeper::after {
+  background: #3d2c18;
+  opacity: 0.75;
+}
+
+#opponent-portrait.scene-lighthouse_keeper .scene-glow {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 25%, rgba(255, 210, 100, 0.35) 0%, transparent 60%),
+    radial-gradient(circle at 50% 70%, rgba(212, 165, 116, 0.1) 0%, transparent 70%);
+  animation: lighthouseSweep 3s ease-in-out infinite alternate;
+}
+
+@keyframes lighthouseSweep {
+  0% { opacity: 0.5; transform: scaleX(0.9); }
+  100% { opacity: 1; transform: scaleX(1.2); }
+}
+
+/* --- Luca: 镜面剧场 --- */
+#opponent-portrait.scene-luca {
+  background: linear-gradient(180deg, #2a0a1a 0%, #4a1a2e 55%, #1a0a14 100%);
+  border-color: #a07080;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 0 14px rgba(160, 112, 128, 0.3);
+}
+
+#opponent-portrait.scene-luca::before {
+  background: linear-gradient(180deg, #5c4033 0%, #3e2b22 100%);
+  opacity: 0.75;
+  width: 52px;
+  border-radius: 26px 26px 2px 2px;
+}
+
+#opponent-portrait.scene-luca::after {
+  background: #5c4033;
+  opacity: 0.75;
+  width: 28px;
+  height: 28px;
+  bottom: 80px;
+}
+
+#opponent-portrait.scene-luca .scene-glow {
+  background:
+    radial-gradient(circle at 50% 15%, rgba(212, 140, 160, 0.3) 0%, transparent 55%),
+    radial-gradient(circle at 50% 70%, rgba(160, 112, 128, 0.1) 0%, transparent 70%);
+}
+
+/* --- Nameless Courier: 终点星 --- */
+#opponent-portrait.scene-nameless_courier {
+  background: linear-gradient(180deg, #0a0a1a 0%, #141428 50%, #1a1a3e 100%);
+  border-color: #7a8aaa;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 0 14px rgba(122, 138, 170, 0.25);
+}
+
+#opponent-portrait.scene-nameless_courier::before {
+  background: linear-gradient(180deg, #4a4a5e 0%, #2a2a3e 100%);
+  opacity: 0.55;
+}
+
+#opponent-portrait.scene-nameless_courier::after {
+  background: #4a4a5e;
+  opacity: 0.55;
+}
+
+#opponent-portrait.scene-nameless_courier .scene-glow {
+  background:
+    radial-gradient(circle at 50% 70%, rgba(140, 180, 255, 0.12) 0%, transparent 70%),
+    radial-gradient(1.5px 1.5px at 20% 30%, rgba(180, 200, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 70% 20%, rgba(180, 200, 255, 0.4), transparent),
+    radial-gradient(1.5px 1.5px at 40% 60%, rgba(180, 200, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 80% 50%, rgba(180, 200, 255, 0.4), transparent),
+    radial-gradient(1.5px 1.5px at 15% 70%, rgba(180, 200, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 60% 80%, rgba(180, 200, 255, 0.4), transparent);
+  animation: starTwinkle 4s ease-in-out infinite alternate;
+}
+
+@keyframes starTwinkle {
+  0% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
