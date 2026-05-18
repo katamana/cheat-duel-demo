@@ -1,0 +1,140 @@
+{
+  "swap_one": {
+    "id": "swap_one",
+    "name_display": "偷换一张",
+    "name_in_world": "偷换措辞",
+    "category": "control",
+    "description": "将一张手牌替换为牌堆顶第二张",
+    "cooldown_rounds": 1,
+    "effect": "swap_one",
+    "tell_pool": [
+      {
+        "id": "swap_tell_1",
+        "text": "对方的手指刚才轻轻碰了一下牌堆",
+        "exposure_rate": 0.4,
+        "leak_amount": 12
+      },
+      {
+        "id": "swap_tell_2",
+        "text": "对方放下牌的节奏，似乎慢了半拍",
+        "exposure_rate": 0.25,
+        "leak_amount": 8
+      },
+      {
+        "id": "swap_tell_3",
+        "text": "对方有一张牌的边缘磨损得不太一样",
+        "exposure_rate": 0.15,
+        "leak_amount": 6
+      }
+    ]
+  },
+  "peek": {
+    "id": "peek",
+    "name_display": "偷看",
+    "name_in_world": "窥探",
+    "category": "info",
+    "description": "偷看对手1张暗牌",
+    "cooldown_rounds": 1,
+    "effect": "peek",
+    "tell_pool": [
+      {
+        "id": "peek_tell_1",
+        "text": "对方的视线刚才飘到了你这边",
+        "exposure_rate": 0.3,
+        "leak_amount": 10
+      },
+      {
+        "id": "peek_tell_2",
+        "text": "对方的表情有一瞬变化",
+        "exposure_rate": 0.2,
+        "leak_amount": 8
+      }
+    ]
+  },
+  "disguise": {
+    "id": "disguise",
+    "name_display": "伪装",
+    "name_in_world": "夸大",
+    "category": "deception",
+    "description": "将一张小牌摊牌时显示为大牌（直到被看穿才揭示）",
+    "cooldown_rounds": 1,
+    "effect": "disguise",
+    "tell_pool": [
+      {
+        "id": "disguise_tell_1",
+        "text": "对方的下注方式，今天有点不一样",
+        "exposure_rate": 0.5,
+        "leak_amount": 14
+      },
+      {
+        "id": "disguise_tell_2",
+        "text": "对方刚才有一个极轻微的微笑",
+        "exposure_rate": 0.35,
+        "leak_amount": 10
+      }
+    ]
+  },
+  "smoke": {
+    "id": "smoke",
+    "name_display": "烟雾",
+    "name_in_world": "故作镇定",
+    "category": "deception",
+    "description": "本轮自己其他暗手的暴露率全部 -30%",
+    "cooldown_rounds": 2,
+    "effect": "smoke",
+    "tell_pool": [
+      {
+        "id": "smoke_tell_1",
+        "text": "对方今天有点过分镇定",
+        "exposure_rate": 0.2,
+        "leak_amount": 8
+      }
+    ]
+  },
+  "second_deal": {
+    "id": "second_deal",
+    "name_display": "拨牌",
+    "name_in_world": "回避",
+    "category": "control",
+    "description": "自己抽牌时从第二张取（绕过最顶上那张）",
+    "cooldown_rounds": 1,
+    "effect": "second_deal",
+    "tell_pool": [
+      {
+        "id": "second_tell_1",
+        "text": "对方抽牌时停顿了一下，像在挑选",
+        "exposure_rate": 0.35,
+        "leak_amount": 10
+      },
+      {
+        "id": "second_tell_2",
+        "text": "对方拇指压牌的角度有些奇怪",
+        "exposure_rate": 0.2,
+        "leak_amount": 6
+      }
+    ]
+  },
+  "card_counting": {
+    "id": "card_counting",
+    "name_display": "记牌",
+    "name_in_world": "默数",
+    "category": "info",
+    "description": "显示牌堆顶3张是否含有A或K",
+    "cooldown_rounds": 1,
+    "effect": "card_counting",
+    "tell_pool": [
+      {
+        "id": "count_tell_1",
+        "text": "对方似乎在默念什么",
+        "exposure_rate": 0.15,
+        "leak_amount": 6
+      },
+      {
+        "id": "count_tell_2",
+        "text": "对方的手指在桌下点了几下",
+        "exposure_rate": 0.25,
+        "leak_amount": 8
+      }
+    ]
+  }
+}
