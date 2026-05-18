@@ -62,9 +62,13 @@ export class LucaAI extends AIOpponent {
     return { action: 'check' };
   }
 
-  decideAccusation(seenTells, threshold = null) {
+  decideAccusation(seenTells, threshold = null, readContext = {}) {
     const mask = this.getActiveConfig();
-    return super.decideAccusation(seenTells, threshold ?? mask.accusationThreshold);
+    const maskContext = { ...readContext, noiseSensitivity: mask.noiseSensitivity };
+    if (mask.id === 'general' && readContext.executionQuality === 'shaky') maskContext.suspicion = (maskContext.suspicion || 0) + 12;
+    if (mask.id === 'maiden') maskContext.noiseSensitivity = Math.max(0.7, maskContext.noiseSensitivity || 0.5);
+    if (mask.id === 'king') maskContext.suspicion = Math.max(0, (maskContext.suspicion || 0) - 8);
+    return super.decideAccusation(seenTells, threshold ?? mask.accusationThreshold, maskContext);
   }
 
   decideDraw(handStrength) {

@@ -16,8 +16,8 @@ export class LighthouseKeeperAI extends AIOpponent {
     return null;
   }
 
-  decideAccusation(seenTells, threshold = this.config.accusationThreshold) {
-    return super.decideAccusation(seenTells, threshold);
+  decideAccusation(seenTells, threshold = this.config.accusationThreshold, readContext = {}) {
+    return super.decideAccusation(seenTells, threshold + 0.08, readContext);
   }
 
   decideBet(handStrength, threatLevel, currentBet, opponentBet, chips, settings) {

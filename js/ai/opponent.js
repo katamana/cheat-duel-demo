@@ -34,21 +34,30 @@ export class AIOpponent {
     return { action: 'check' };
   }
 
-  decideAccusation(seenTells, accusationThreshold = this.config.accusationThreshold ?? 0.7) {
-    const realTells = seenTells.filter(t => t.isReal);
-    const score = realTells.length / Math.max(1, seenTells.length);
-    if (score >= accusationThreshold && seenTells.length > 0) {
-      // pick most common cheatId among real tells
+  decideAccusation(seenTells, accusationThreshold = this.config.accusationThreshold ?? 0.7, readContext = {}) {
+    if (seenTells.length === 0) return { accuse: false };
+
+    const noiseSensitivity = readContext.noiseSensitivity ?? this.config.noiseSensitivity ?? 0.5;
+    const suspicionPressure = (readContext.suspicion || 0) / 100;
+    const betPressure = Math.min(0.25, (readContext.playerBet || 0) / Math.max(1, readContext.maxRaise || 1) * 0.18);
+    const executionPressure = readContext.executionQuality === 'failed' ? 0.18 : readContext.executionQuality === 'shaky' ? 0.1 : 0;
+    const visibleWeight = seenTells.reduce((sum, tell) => sum + (tell.suspicionWeight || 1), 0);
+    const evidenceScore = Math.min(0.65, visibleWeight / Math.max(10, seenTells.length * 4));
+    const score = evidenceScore + suspicionPressure * 0.3 + betPressure + executionPressure - noiseSensitivity * 0.08;
+
+    if (score >= accusationThreshold) {
       const counts = {};
-      for (const t of realTells) {
-        counts[t.cheatId] = (counts[t.cheatId] || 0) + 1;
+      for (const tell of seenTells) {
+        for (const cheatId of tell.possibleCheats || []) {
+          counts[cheatId] = (counts[cheatId] || 0) + (tell.suspicionWeight || 1);
+        }
       }
       let best = null;
       let bestCount = 0;
-      for (const [k, v] of Object.entries(counts)) {
-        if (v > bestCount) { best = k; bestCount = v; }
+      for (const [cheatId, weight] of Object.entries(counts)) {
+        if (weight > bestCount) { best = cheatId; bestCount = weight; }
       }
-      return { accuse: true, targetCheatId: best };
+      return { accuse: true, targetCheatId: best || null };
     }
     return { accuse: false };
   }

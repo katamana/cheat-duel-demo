@@ -51,8 +51,19 @@ export class NamelessCourierAI extends AIOpponent {
     return { action: 'check' };
   }
 
-  decideAccusation(seenTells, threshold = 0.5) {
-    // lower threshold than base
-    return super.decideAccusation(seenTells, threshold);
+  decideAccusation(seenTells, threshold = 0.5, readContext = {}) {
+    const history = this.getMirroredPreference();
+    const historyBias = history.length > 0 ? 10 : 0;
+    const biasedTells = seenTells.map(tell => {
+      const possibleCheats = tell.possibleCheats || [];
+      const matchesHistory = possibleCheats.some(cheatId => history.includes(cheatId));
+      return matchesHistory
+        ? { ...tell, suspicionWeight: (tell.suspicionWeight || 1) + 1 }
+        : tell;
+    });
+    return super.decideAccusation(biasedTells, threshold, {
+      ...readContext,
+      suspicion: (readContext.suspicion || 0) + historyBias
+    });
   }
 }
