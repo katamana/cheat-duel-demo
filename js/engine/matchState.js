@@ -195,9 +195,18 @@ export class MatchState {
 
   changeSuspicion(side, delta, reason) {
     const state = side === 'player' ? this.player : this.opponent;
-    const scaledDelta = side === 'player'
+    let scaledDelta = side === 'player'
       ? Math.round(delta * (this.opponentConfig.suspicionTolerance || 1))
       : delta;
+    if (scaledDelta > 0) {
+      const softCap = this.balance.suspicion?.soft_cap || 65;
+      const critical = this.balance.suspicion?.critical || 90;
+      if (state.suspicion >= critical) {
+        scaledDelta = Math.max(1, Math.round(scaledDelta * 0.35));
+      } else if (state.suspicion >= softCap) {
+        scaledDelta = Math.max(1, Math.round(scaledDelta * 0.6));
+      }
+    }
     const next = this.clamp(state.suspicion + scaledDelta, 0, 100);
     const applied = next - state.suspicion;
     state.suspicion = next;
@@ -259,6 +268,9 @@ export class MatchState {
         this.peekedOpponentCard = { index: peekIndex, card: this.opponent.hand[peekIndex] };
       }
       this.logPlayerCheatResult(res.extra || {});
+    } else {
+      const honestDelta = this.balance.suspicion?.honest_round_delta || 0;
+      if (honestDelta) this.changeSuspicion('player', honestDelta, '未出暗手');
     }
 
     // apply opponent cheat
@@ -323,7 +335,7 @@ export class MatchState {
     }
     // noise for player
     const noiseCount = 1 + Math.floor(Math.random() * 2);
-    const noises = this.tellEngine.generateNoise(this.opponentConfig.id, noiseCount);
+    const noises = this.tellEngine.generateNoise(this.opponentConfig.id, noiseCount, this.cheatsData);
     this.player.seenTells.push(...noises);
 
     // opponent sees player tells
@@ -337,7 +349,7 @@ export class MatchState {
       for (const t of tells) this.player.leak += t.leak_amount;
     }
     // noise for opponent
-    const oppNoises = this.tellEngine.generateNoise('generic', noiseCount);
+    const oppNoises = this.tellEngine.generateNoise('generic', noiseCount, this.cheatsData);
     this.opponent.seenTells.push(...oppNoises);
 
     // leak thresholds
@@ -364,8 +376,18 @@ export class MatchState {
 
     this.pot += res.amount;
 
-    if (side === 'player' && action === 'raise' && amount >= this.settings.max_raise) {
+    if (side === 'player' && action === 'raise' && amount >= Math.ceil(this.settings.max_raise * 0.7)) {
       this.changeSuspicion('player', this.balance.suspicion?.heavy_bet_delta || 0, '押注过重');
+    }
+
+    if (side === 'player' && action === 'check' && this.player.selectedCheat === null) {
+      const quietDelta = this.balance.suspicion?.quiet_check_delta || 0;
+      if (quietDelta) this.changeSuspicion('player', quietDelta, '安静观望');
+    }
+
+    if (side === 'player' && action === 'fold' && this.player.suspicion >= (this.balance.suspicion?.danger || 65)) {
+      const foldDelta = this.balance.suspicion?.fold_cooldown_delta || 0;
+      if (foldDelta) this.changeSuspicion('player', foldDelta, '弃牌降温');
     }
 
     if (res.folded) {
@@ -445,7 +467,8 @@ export class MatchState {
 
     if (correct) {
       accused.leak += 15;
-      this.changeSuspicion(this.accusationResult?.loser || (side === 'player' ? 'opponent' : 'player'), 8, '看穿成立');
+      this.changeSuspicion(side === 'player' ? 'opponent' : 'player', 6, '看穿成立');
+      this.changeSuspicion(side, -4, '判断成立');
       this.roundWinner = side;
       this.logEvent(`${side === 'player' ? '你' : '对手'} 指控成功！`);
       this.accusationResult = {
@@ -457,7 +480,10 @@ export class MatchState {
       };
     } else {
       this.roundWinner = side === 'player' ? 'opponent' : 'player';
-      this.changeSuspicion(side, 6, '错误看穿');
+      this.changeSuspicion(side, 4, '错误看穿');
+      if (side === 'opponent') {
+        this.changeSuspicion('player', this.balance.suspicion?.opponent_wrong_accuse_delta || 0, '对手误判');
+      }
       this.logEvent(`${side === 'player' ? '你' : '对手'} 指控失败！`);
       this.accusationResult = {
         correct: false,
@@ -544,6 +570,38 @@ export class MatchState {
     return { success: true };
   }
 
+  getBettingOptions() {
+    const maxRaise = this.settings.max_raise;
+    const ante = this.settings.ante;
+    return [
+      { id: 'small', label: '小加注', amount: Math.min(maxRaise, ante), meaning: '试探', suspicionDelta: 0 },
+      { id: 'heavy', label: '重加注', amount: Math.min(maxRaise, Math.max(ante, Math.ceil(maxRaise * 0.7))), meaning: '施压', suspicionDelta: this.balance.suspicion?.heavy_bet_delta || 0 },
+      { id: 'max', label: '最大加注', amount: maxRaise, meaning: '声明信念', suspicionDelta: this.balance.suspicion?.heavy_bet_delta || 0 }
+    ];
+  }
+
+  getPublicTell(tell) {
+    return {
+      id: tell.id,
+      text: tell.text,
+      leak_amount: tell.leak_amount,
+      visibleTags: tell.visibleTags || [],
+      suspicionWeight: tell.suspicionWeight || 1,
+      ambiguity: tell.ambiguity || 'medium',
+      possibleCheats: tell.possibleCheats || []
+    };
+  }
+
+  getRevealTell(tell) {
+    return {
+      ...this.getPublicTell(tell),
+      isReal: tell.isReal,
+      source: tell.source,
+      cheatId: tell.cheatId,
+      cheatName: this.getCheatName(tell.cheatId)
+    };
+  }
+
   getPublicState() {
     const roundEnded = this.phase === 'ROUND_END' || this.state === 'MATCH_END';
     return {
@@ -553,7 +611,8 @@ export class MatchState {
       pot: this.pot,
       settings: {
         ante: this.settings.ante,
-        maxRaise: this.settings.max_raise
+        maxRaise: this.settings.max_raise,
+        bettingOptions: this.getBettingOptions()
       },
       accusation: {
         correctRewardMultiplier: this.balance.accusation.correct_reward_multiplier,
@@ -566,7 +625,7 @@ export class MatchState {
         leak: this.player.leak,
         folded: this.player.folded,
         drawCount: this.player.drawCount,
-        seenTells: this.player.seenTells,
+        seenTells: this.player.seenTells.map(tell => this.getPublicTell(tell)),
         selectedCheat: this.player.selectedCheat,
         lastCheatExtra: this.player.lastCheatExtra,
         activeCheats: this.player.activeCheats,
@@ -586,7 +645,7 @@ export class MatchState {
         leak: this.opponent.leak,
         folded: this.opponent.folded,
         drawCount: this.opponent.drawCount,
-        seenTells: this.opponent.seenTells,
+        seenTells: this.opponent.seenTells.map(tell => this.getPublicTell(tell)),
         selectedCheat: roundEnded ? this.opponent.selectedCheat : null,
         lastCheatExtra: roundEnded ? this.opponent.lastCheatExtra : null,
         activeCheats: roundEnded ? this.opponent.activeCheats : [],
@@ -604,12 +663,7 @@ export class MatchState {
         playerCheatName: this.getCheatName(this.player.selectedCheat),
         opponentCheatId: this.opponent.selectedCheat,
         opponentCheatName: this.getCheatName(this.opponent.selectedCheat),
-        playerTells: this.player.seenTells.map(tell => ({
-          text: tell.text,
-          isReal: tell.isReal,
-          cheatId: tell.cheatId,
-          cheatName: this.getCheatName(tell.cheatId)
-        }))
+        playerTells: this.player.seenTells.map(tell => this.getRevealTell(tell))
       } : null,
       accusationWindowOpen: this.accusationWindowOpen,
       accusationResult: this.accusationResult,
