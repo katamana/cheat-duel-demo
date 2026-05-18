@@ -27,6 +27,7 @@ export class Renderer {
             <div id="opponent-stats">
               <span>筹码: <b id="opponent-chips">0</b></span>
               <span>流露: <b id="opponent-leak">0</b></span>
+              <span>戒心: <b id="opponent-suspicion">0</b></span>
             </div>
             <div id="opponent-rules"></div>
             <div id="opponent-hand" class="card-area"></div>
@@ -50,7 +51,9 @@ export class Renderer {
             <span>筹码: <b id="player-chips">0</b></span>
             <span>下注: <b id="player-bet">0</b></span>
             <span>流露: <b id="player-leak">0</b></span>
+            <span>戒心: <b id="player-suspicion">0</b></span>
           </div>
+          <div id="suspicion-panel"></div>
           <div id="cheat-buttons"></div>
           <div id="controls"></div>
         </div>
@@ -62,9 +65,11 @@ export class Renderer {
 
     this.elements = {
       opponentPortrait: document.getElementById('opponent-portrait'),
+      opponentArea: document.getElementById('opponent-area'),
       opponentName: document.getElementById('opponent-name'),
       opponentChips: document.getElementById('opponent-chips'),
       opponentLeak: document.getElementById('opponent-leak'),
+      opponentSuspicion: document.getElementById('opponent-suspicion'),
       opponentHand: document.getElementById('opponent-hand'),
       opponentRules: document.getElementById('opponent-rules'),
       pot: document.getElementById('pot-display'),
@@ -77,6 +82,8 @@ export class Renderer {
       playerChips: document.getElementById('player-chips'),
       playerBet: document.getElementById('player-bet'),
       playerLeak: document.getElementById('player-leak'),
+      playerSuspicion: document.getElementById('player-suspicion'),
+      suspicionPanel: document.getElementById('suspicion-panel'),
       cheatButtons: document.getElementById('cheat-buttons'),
       controls: document.getElementById('controls'),
       logPanel: document.getElementById('log-panel'),
@@ -91,6 +98,7 @@ export class Renderer {
     this.renderOpponent(state, opponentConfig);
     this.renderPublic(state);
     this.renderPlayer(state);
+    this.renderSuspicion(state);
     this.renderTells(state, cheatsData);
     this.renderControls(state, cheatsData);
     this.renderLog(state);
@@ -102,6 +110,7 @@ export class Renderer {
     this.elements.opponentName.textContent = (opponentConfig.name || '对手') + planetLabel;
     this.elements.opponentChips.textContent = opp.chips;
     this.elements.opponentLeak.textContent = opp.leak;
+    this.elements.opponentSuspicion.textContent = `${opp.suspicion || 0} · ${opp.suspicionStage || '松弛'}`;
 
     // Scene differentiation by opponent identity
     const portrait = this.elements.opponentPortrait;
@@ -117,6 +126,9 @@ export class Renderer {
       this.elements.opponentLeak.classList.remove('leak-warning');
     }
 
+    this.elements.opponentSuspicion.classList.toggle('suspicion-warning', (opp.suspicion || 0) >= 65);
+    this.elements.opponentArea.classList.toggle('suspicion-high', (opp.suspicion || 0) >= 65 || (state.player.suspicion || 0) >= 65);
+
     // Opponent rules hint
     const rulesEl = this.elements.opponentRules;
     if (opponentConfig.rule_hint) {
@@ -125,20 +137,29 @@ export class Renderer {
       rulesEl.innerHTML = '';
     }
 
-    // render opponent cards (backs) with staggered entrance on deal
+    // render opponent cards (backs or revealed peek) with staggered entrance on deal
     const handEl = this.elements.opponentHand;
     const currentCount = handEl.children.length;
     handEl.innerHTML = '';
+    const peeked = opp.peekedCard;
+    const suitSymbols = { spades: '♠', hearts: '♥', clubs: '♣', diamonds: '♦' };
     for (let i = 0; i < opp.handCount; i++) {
-      const card = document.createElement('div');
-      card.className = 'card back';
-      card.textContent = '?';
+      const cardEl = document.createElement('div');
+      if (peeked && peeked.index === i && peeked.card) {
+        const card = peeked.card;
+        const suitColor = (card.suit === 'hearts' || card.suit === 'diamonds') ? '#9b3838' : '#2c2418';
+        cardEl.className = 'card reveal';
+        cardEl.innerHTML = `<div class="rank" style="color:${suitColor}">${card.rank}</div><div class="suit" style="color:${suitColor}">${suitSymbols[card.suit]}</div>`;
+      } else {
+        cardEl.className = 'card back';
+        cardEl.textContent = '?';
+      }
       // Staggered deal-in animation for new cards
       if (state.phase === 'DEAL' || currentCount === 0) {
-        card.classList.add('deal-in');
-        card.style.animationDelay = `${i * 80}ms`;
+        cardEl.classList.add('deal-in');
+        cardEl.style.animationDelay = `${i * 80}ms`;
       }
-      handEl.appendChild(card);
+      handEl.appendChild(cardEl);
     }
   }
 
@@ -200,6 +221,7 @@ export class Renderer {
     this.elements.playerChips.textContent = p.chips;
     this.elements.playerBet.textContent = p.currentBet;
     this.elements.playerLeak.textContent = p.leak;
+    this.elements.playerSuspicion.textContent = `${p.suspicion || 0} · ${p.suspicionStage || '松弛'}`;
 
     // Leak warning styling
     const playerLeakEl = this.elements.playerLeak;
@@ -208,6 +230,8 @@ export class Renderer {
     } else {
       playerLeakEl.classList.remove('leak-warning');
     }
+
+    playerLeakEl.parentElement?.classList.toggle('suspicion-warning', (p.suspicion || 0) >= 65);
 
     // render player cards with entrance animation on deal
     const handEl = this.elements.playerHand;
@@ -265,6 +289,20 @@ export class Renderer {
       hint.textContent = `牌型: ${handRankToString(ev)}`;
       handEl.appendChild(hint);
     }
+  }
+
+  renderSuspicion(state) {
+    const panel = this.elements.suspicionPanel;
+    const p = state.player;
+    const last = p.lastSuspicionChange;
+    const reason = last ? `${last.reason} ${last.amount > 0 ? '+' : ''}${last.amount}` : '桌面暂时平静';
+    panel.innerHTML = `
+      <div class="suspicion-card ${p.suspicion >= 65 ? 'high' : ''}">
+        <div class="suspicion-head"><span>戒心</span><span>${p.suspicionStage || '松弛'} · ${p.suspicion || 0}/100</span></div>
+        <div class="suspicion-track"><div class="suspicion-fill" style="width:${Math.min(100, p.suspicion || 0)}%"></div></div>
+        <div class="suspicion-reason">${reason}</div>
+      </div>
+    `;
   }
 
   findCheatsForTell(text, cheatsData) {
@@ -361,7 +399,11 @@ export class Renderer {
       confirmBtn.className = 'primary';
       confirmBtn.textContent = '确认选择';
       confirmBtn.addEventListener('click', () => {
-        if (this.onAction) this.onAction('confirmCheat', this.selectedCheat);
+        if (!this.selectedCheat) {
+          if (this.onAction) this.onAction('confirmCheat', { cheatId: null, execution: null });
+          return;
+        }
+        this.showCheatExecutionModal(this.selectedCheat, cheatsData[this.selectedCheat]);
       });
       controls.appendChild(confirmBtn);
     }
@@ -495,6 +537,20 @@ export class Renderer {
       hints.push('你的<span class="hint-warn">流露渐增</span>，注意收敛');
     }
 
+    if (p.disguiseActive) {
+      hints.push('你的气势被<span class="hint-strong">伪装放大</span>，弱势对手更容易退让');
+    }
+
+    if (p.selectedCheat === 'smoke') {
+      hints.push('烟雾压低了本轮<span class="hint-strong">流露风险</span>，但不改变牌力');
+    }
+
+    if (p.suspicion >= 65) {
+      hints.push('对手的<span class="hint-danger">戒心逼近</span>，暗手更容易留下痕迹');
+    } else if (p.suspicion >= 35) {
+      hints.push('对手开始<span class="hint-warn">留意你的手</span>，少一点迟疑');
+    }
+
     if (opp.leak >= 60) {
       const pressure = settings.maxRaise ? `可用最高 ${settings.maxRaise} 施压` : '可能是施压时机';
       hints.push(`对手<span class="hint-strong">破绽百出</span>，${pressure}`);
@@ -519,14 +575,25 @@ export class Renderer {
     const opp = state.opponent;
 
     const cheat = p.selectedCheat ? (cheatsData || {})[p.selectedCheat] : null;
+    const opponentCheat = opp.selectedCheat ? (cheatsData || {})[opp.selectedCheat] : null;
+    const reveal = state.roundReveal;
     const cheatLine = cheat
       ? `你的暗手：<b>${cheat.name_display}</b> — ${cheat.description}`
       : '你未使用暗手。';
+    const executionLine = p.executionResult
+      ? `执行：<b>${p.executionResult.label}</b>${p.executionResult.choice ? `（${p.executionResult.choice}）` : ''}，流露 ${p.executionResult.leakBonus > 0 ? `+${p.executionResult.leakBonus}` : '+0'}，戒心 +${p.executionResult.suspicionDelta || 0}。`
+      : '执行：本轮没有暗手动作。';
+    const opponentCheatLine = opponentCheat
+      ? `对手暗手：<b>${opponentCheat.name_display}</b> — ${opponentCheat.description}`
+      : '对手未使用暗手。';
 
     const realTells = p.seenTells.filter(t => t.isReal).length;
     const totalTells = p.seenTells.length;
-    const evidenceLine = totalTells > 0
-      ? `观察到的线索：${totalTells} 条（${realTells} 条较为明显）`
+    const revealTells = reveal?.playerTells || [];
+    const realReveal = revealTells.filter(t => t.isReal).map(t => `「${t.text}」来自${t.cheatName}`).join('；');
+    const noiseReveal = revealTells.filter(t => !t.isReal).map(t => `「${t.text}」`).join('；');
+    const evidenceLine = revealTells.length > 0
+      ? `线索回看：${realTells}/${totalTells} 条来自真实暗手。${realReveal || '没有真实破绽浮出。'}${noiseReveal ? ` 噪声：${noiseReveal}。` : ''}`
       : '本轮未观察到任何线索。';
 
     let resultLine = '';
@@ -535,16 +602,16 @@ export class Renderer {
       const res = state.accusationResult;
       if (res.correct && res.winner === 'player') {
         resultLine = '你指控成功，抓住了对手的破绽。';
-        causeEffect = '对手额外暴露，你赢得本轮彩池。';
+        causeEffect = `对手额外暴露，你赢得 ${res.payout?.total ?? '本轮'} 彩池。`;
       } else if (res.correct && res.winner === 'opponent') {
         resultLine = '对手指控成功，你的暗手被看穿。';
-        causeEffect = '你额外暴露，对手赢得本轮彩池。';
+        causeEffect = `你额外暴露，对手赢得 ${res.payout?.total ?? '本轮'} 彩池。`;
       } else if (!res.correct && res.winner === 'player') {
         resultLine = '对手指控失败，反被你利用。';
-        causeEffect = '你赢得本轮彩池。';
+        causeEffect = `你赢得 ${res.payout?.total ?? '本轮'} 彩池。`;
       } else {
         resultLine = '你指控失败，反被对手利用。';
-        causeEffect = '对手赢得本轮彩池。';
+        causeEffect = `对手赢得 ${res.payout?.total ?? '本轮'} 彩池。`;
       }
     } else if (p.folded) {
       resultLine = '你选择弃牌。';
@@ -567,10 +634,85 @@ export class Renderer {
       <div class="round-recap-card">
         <div class="recap-title">本轮复盘</div>
         <div class="recap-section">${cheatLine}</div>
+        <div class="recap-section">${executionLine}</div>
+        <div class="recap-section">${opponentCheatLine}</div>
         <div class="recap-section">${evidenceLine}</div>
         <div class="recap-section"><b>${resultLine}</b> ${causeEffect}</div>
       </div>
     `;
+  }
+
+  showCheatExecutionModal(cheatId, cheat) {
+    const modal = this.elements.modalLayer;
+    const choices = this.getExecutionChoices(cheatId);
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+      <div class="modal-overlay execution-overlay">
+        <div class="modal-content execution-modal">
+          <h2>执行暗手</h2>
+          <div class="execution-card">
+            <div class="execution-title">${cheat.name_display}</div>
+            <p>${this.getExecutionPrompt(cheatId)}</p>
+            <div class="execution-meter"><span></span></div>
+          </div>
+          <div id="execution-options"></div>
+          <button id="execution-cancel">收手</button>
+        </div>
+      </div>
+    `;
+
+    const options = document.getElementById('execution-options');
+    for (const choice of choices) {
+      const btn = document.createElement('button');
+      btn.className = `execution-option ${choice.quality}`;
+      btn.innerHTML = `<span class="execution-name">${choice.label}</span><span class="execution-desc">${choice.text}</span>`;
+      btn.addEventListener('click', () => {
+        modal.style.display = 'none';
+        if (this.onAction) this.onAction('confirmCheat', { cheatId, execution: choice });
+      });
+      options.appendChild(btn);
+    }
+
+    document.getElementById('execution-cancel').addEventListener('click', () => {
+      modal.style.display = 'none';
+      if (this.onAction) this.onAction('confirmCheat', { cheatId: null, execution: null });
+    });
+  }
+
+  getExecutionPrompt(cheatId) {
+    const prompts = {
+      peek: '对手的牌角短暂露出。你要记住它，也要把目光收回来。',
+      swap_one: '你的指尖靠近牌缝。越稳，换牌越像一次自然的整理。',
+      second_deal: '牌堆顶端有阻力。你需要让第二张牌像第一张那样滑出。',
+      card_counting: '三张牌在脑中一闪而过。记住高牌的影子，别念出声。',
+      disguise: '你要把一手普通牌说成一段更大的故事。',
+      smoke: '你试着把呼吸、视线和话题都放慢一点。'
+    };
+    return prompts[cheatId] || '暗手已经开始，桌上的目光正在靠近。';
+  }
+
+  getExecutionChoices(cheatId) {
+    const cleanText = {
+      peek: '记住牌面，立刻收回视线。',
+      swap_one: '在牌缝合上前完成替换。',
+      second_deal: '让第二张牌无声滑出。',
+      card_counting: '只记高牌，不多停留。',
+      disguise: '轻描淡写地夸大一句。',
+      smoke: '平静呼吸，像什么都没发生。'
+    };
+    const shakyText = {
+      peek: '多看了半拍，但还记得牌。',
+      swap_one: '动作慢了，牌还是换成了。',
+      second_deal: '拇指停了一下，仍拨过顶牌。',
+      card_counting: '默数出了声息，信息还在。',
+      disguise: '声明偏大胆，压迫更强也更显眼。',
+      smoke: '话题转得生硬，但遮住了一点痕迹。'
+    };
+    return [
+      { quality: 'clean', label: '干净', choice: cleanText[cheatId], text: cleanText[cheatId] },
+      { quality: 'shaky', label: '迟疑', choice: shakyText[cheatId], text: shakyText[cheatId] },
+      { quality: 'failed', label: '失手', choice: '动作被桌面记住。效果仍会结算，但代价更重。', text: '动作被桌面记住。效果仍会结算，但代价更重。' }
+    ];
   }
 
   showAccusationModal(state, cheatsData) {
@@ -583,6 +725,8 @@ export class Renderer {
     const evidenceSummary = tells.length > 0
       ? `你已观察到 ${tells.length} 条线索，其中 ${realTells} 条较为明显。`
       : '你尚未观察到任何线索。';
+    const correctMultiplier = state.accusation?.correctRewardMultiplier || 1;
+    const wrongMultiplier = state.accusation?.wrongPenaltyMultiplier || 1.5;
 
     modal.innerHTML = `
       <div class="modal-overlay">
@@ -594,8 +738,8 @@ export class Renderer {
           </div>
           <div class="accusation-consequences">
             <div class="consequences-title">后果</div>
-            <p><b>指控成功</b>：对手额外暴露，你赢得本轮彩池。</p>
-            <p><b>指控失败</b>：对手赢得本轮彩池，你反被利用。</p>
+            <p><b>指控成功</b>：对手额外暴露，你赢得本轮彩池${correctMultiplier > 1 ? ` × ${correctMultiplier}` : ''}。</p>
+            <p><b>指控失败</b>：对手赢得本轮彩池 × ${wrongMultiplier}，你反被利用。</p>
           </div>
           <p class="accusation-prompt">选择你认为对方使用的暗手：</p>
           <div id="accusation-options"></div>
