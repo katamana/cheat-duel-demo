@@ -9,9 +9,10 @@
     "accusationThreshold": 0.95,
     "noiseSensitivity": 0.7,
     "tellLeakage": 1.8,
+    "suspicionTolerance": 0.6,
     "betPattern": "tight",
     "starting_chips": 80,
-    "rule_hint": "下注保守，破绽暴露率极高，几乎不会指控你。适合练习暗手与观察流露。",
+    "rule_hint": "教学型对手：下注保守，破绽很亮，戒心惩罚较轻。适合练习暗手、流露与看穿。",
     "notes": "几乎不会看穿玩家；自己出暗手时破绽暴露率超高；下注保守。这局玩家很难输。"
   },
   "luca": {
@@ -27,7 +28,8 @@
         "cheatPreference": ["second_deal", "peek"],
         "accusationThreshold": 0.5,
         "noiseSensitivity": 0.3,
-        "tellLeakage": 1.0
+        "tellLeakage": 1.0,
+        "read_hint": "将军怕强压，但会盯住迟疑。"
       },
       {
         "id": "maiden",
@@ -37,7 +39,8 @@
         "cheatPreference": ["disguise", "smoke"],
         "accusationThreshold": 0.4,
         "noiseSensitivity": 0.5,
-        "tellLeakage": 1.3
+        "tellLeakage": 1.3,
+        "read_hint": "少女会制造模糊流露，引你误判。"
       },
       {
         "id": "king",
@@ -47,12 +50,13 @@
         "cheatPreference": ["card_counting", "swap_one"],
         "accusationThreshold": 0.6,
         "noiseSensitivity": 0.4,
-        "tellLeakage": 0.9
+        "tellLeakage": 0.9,
+        "read_hint": "国王诚实与暗手混用，需要看长期节奏。"
       }
     ],
     "mask_switch_interval": "every_2_rounds",
     "starting_chips": 150,
-    "rule_hint": "每2轮切换面具，不同面具偏好不同暗手、下注风格迥异。观察他的气质变化。"
+    "rule_hint": "变化型对手：每2轮切换面具。将军怕强压，少女诱导误判，国王考验长期观察。"
   },
   "nameless_courier": {
     "id": "nameless_courier",
@@ -64,10 +68,11 @@
     "accusationThreshold": 0.5,
     "noiseSensitivity": 0.2,
     "tellLeakage": 0.4,
+    "suspicionTolerance": 1.25,
     "betPattern": "balanced",
     "starting_chips": 200,
     "special_abilities": ["reverse_tell"],
-    "rule_hint": "模仿你的行为模式，每3轮发动反向流露。你看到的破绽可能是陷阱。",
+    "rule_hint": "镜像型对手：会学习你常用的暗手，每3轮发动反向流露。你看到的破绽可能是陷阱。",
     "notes": "AI在每轮开始时统计玩家前两关的统计数据，本场战斗动态模仿玩家。这是一面镜子。"
   }
 }

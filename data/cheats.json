@@ -88,10 +88,10 @@
     "name_display": "烟雾",
     "name_in_world": "故作镇定",
     "category": "deception",
-    "description": "本轮自己其他暗手的暴露率全部 -30%",
-    "benefit": "掩盖其他暗手痕迹",
+    "description": "本轮你的暗手暴露率 -30%，但不直接改变牌力",
+    "benefit": "降低本轮流露风险",
     "risk": "过分镇定本身也是破绽",
-    "use_case": "计划连续使用暗手、或已暴露较多时使用",
+    "use_case": "流露偏高、需要收敛动作时使用",
     "cooldown_rounds": 2,
     "effect": "smoke",
     "tell_pool": [

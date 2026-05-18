@@ -28,6 +28,26 @@
     "leak_threshold_critical": 100,
     "leak_bonus_exposure_when_high": 0.3
   },
+  "execution": {
+    "clean": { "leak_bonus": 0, "suspicion_delta": 4, "exposure_mod": -0.05 },
+    "shaky": { "leak_bonus": 6, "suspicion_delta": 16, "exposure_mod": 0.12 },
+    "failed": { "leak_bonus": 14, "suspicion_delta": 30, "exposure_mod": 0.3 }
+  },
+  "suspicion": {
+    "warning": 35,
+    "danger": 65,
+    "critical": 90,
+    "exposure_per_point": 0.004,
+    "accusation_threshold_per_point": 0.003,
+    "heavy_bet_delta": 10,
+    "reverse_tell_delta": 12,
+    "stages": [
+      { "max": 24, "label": "松弛" },
+      { "max": 49, "label": "留意" },
+      { "max": 74, "label": "凝视" },
+      { "max": 100, "label": "逼近" }
+    ]
+  },
   "accusation": {
     "correct_reward_multiplier": 1.0,
     "wrong_penalty_multiplier": 1.5,
