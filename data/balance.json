@@ -29,9 +29,9 @@
     "leak_bonus_exposure_when_high": 0.3
   },
   "execution": {
-    "clean": { "leak_bonus": 0, "suspicion_delta": 4, "exposure_mod": -0.05 },
-    "shaky": { "leak_bonus": 6, "suspicion_delta": 16, "exposure_mod": 0.12 },
-    "failed": { "leak_bonus": 14, "suspicion_delta": 30, "exposure_mod": 0.3 }
+    "clean": { "leak_bonus": 0, "suspicion_delta": 1, "exposure_mod": -0.08 },
+    "shaky": { "leak_bonus": 5, "suspicion_delta": 12, "exposure_mod": 0.1 },
+    "failed": { "leak_bonus": 12, "suspicion_delta": 24, "exposure_mod": 0.24 }
   },
   "suspicion": {
     "warning": 35,
@@ -39,8 +39,13 @@
     "critical": 90,
     "exposure_per_point": 0.004,
     "accusation_threshold_per_point": 0.003,
-    "heavy_bet_delta": 10,
-    "reverse_tell_delta": 12,
+    "soft_cap": 65,
+    "heavy_bet_delta": 8,
+    "reverse_tell_delta": 8,
+    "honest_round_delta": -4,
+    "quiet_check_delta": -2,
+    "fold_cooldown_delta": -10,
+    "opponent_wrong_accuse_delta": -8,
     "stages": [
       { "max": 24, "label": "松弛" },
       { "max": 49, "label": "留意" },
@@ -49,8 +54,8 @@
     ]
   },
   "accusation": {
-    "correct_reward_multiplier": 1.0,
-    "wrong_penalty_multiplier": 1.5,
+    "correct_reward_multiplier": 1.35,
+    "wrong_penalty_multiplier": 1.25,
     "window_seconds": 5
   },
   "hand_ranks": {
