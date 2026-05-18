@@ -1,0 +1,70 @@
+{
+  "lighthouse_keeper": {
+    "id": "lighthouse_keeper",
+    "name": "灯塔守人",
+    "planet": "沉钟星",
+    "aggressiveness": 0.2,
+    "bluffRate": 0.3,
+    "cheatPreference": ["swap_one"],
+    "accusationThreshold": 0.95,
+    "noiseSensitivity": 0.7,
+    "tellLeakage": 1.8,
+    "betPattern": "tight",
+    "starting_chips": 80,
+    "notes": "几乎不会看穿玩家；自己出暗手时破绽暴露率超高；下注保守。这局玩家很难输。"
+  },
+  "luca": {
+    "id": "luca",
+    "name": "演员卢卡",
+    "planet": "镜面剧场",
+    "masks": [
+      {
+        "id": "general",
+        "name": "疲倦的将军",
+        "aggressiveness": 0.4,
+        "bluffRate": 0.5,
+        "cheatPreference": ["second_deal", "peek"],
+        "accusationThreshold": 0.5,
+        "noiseSensitivity": 0.3,
+        "tellLeakage": 1.0
+      },
+      {
+        "id": "maiden",
+        "name": "傲慢的少女",
+        "aggressiveness": 0.8,
+        "bluffRate": 0.7,
+        "cheatPreference": ["disguise", "smoke"],
+        "accusationThreshold": 0.4,
+        "noiseSensitivity": 0.5,
+        "tellLeakage": 1.3
+      },
+      {
+        "id": "king",
+        "name": "温柔的老国王",
+        "aggressiveness": 0.5,
+        "bluffRate": 0.4,
+        "cheatPreference": ["card_counting", "swap_one"],
+        "accusationThreshold": 0.6,
+        "noiseSensitivity": 0.4,
+        "tellLeakage": 0.9
+      }
+    ],
+    "mask_switch_interval": "every_2_rounds",
+    "starting_chips": 150
+  },
+  "nameless_courier": {
+    "id": "nameless_courier",
+    "name": "无名邮差",
+    "planet": "终点星",
+    "aggressiveness": "mirror_player",
+    "bluffRate": "mirror_player",
+    "cheatPreference": "mirror_player",
+    "accusationThreshold": 0.5,
+    "noiseSensitivity": 0.2,
+    "tellLeakage": 0.4,
+    "betPattern": "balanced",
+    "starting_chips": 200,
+    "special_abilities": ["reverse_tell"],
+    "notes": "AI在每轮开始时统计玩家前两关的统计数据，本场战斗动态模仿玩家。这是一面镜子。"
+  }
+}
