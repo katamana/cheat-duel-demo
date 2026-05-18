@@ -70,6 +70,16 @@ class GameController {
     this.lastTrackedRoundKey = null;
     this.currentMatchPlayerCheatUsed = false;
 
+    if (opponentId === 'nameless_courier') {
+      const mirrored = ai.getMirroredPreference?.() || [];
+      if (mirrored.length > 0) {
+        const names = mirrored.map(id => this.data.cheats[id]?.name_display || id).join('、');
+        this.match.logEvent(`无名邮差记住了你常用的暗手：${names}。`);
+      } else {
+        this.match.logEvent('无名邮差没有学到固定手法，这一程会更像纯粹的读局。');
+      }
+    }
+
     // show intro dialogue
     const introLines = this.data.dialogue[opponentId]?.intro || ['对决开始。'];
     this.renderer.showNarrative(introLines.join('\n'), () => {
@@ -81,7 +91,24 @@ class GameController {
   updateUI() {
     if (!this.match) return;
     const state = this.match.getPublicState();
-    this.renderer.render(state, this.data.cheats, this.match.opponentConfig);
+    this.renderer.render(state, this.data.cheats, this.getOpponentDisplayConfig());
+  }
+
+  getOpponentDisplayConfig() {
+    const config = { ...this.match.opponentConfig };
+    const ai = this.match.opponentAI;
+    if (ai instanceof LucaAI) {
+      const mask = ai.getCurrentMask();
+      config.rule_hint = `${this.match.opponentConfig.rule_hint} 当前面具：${mask.name}。${mask.read_hint || ''}`;
+    }
+    if (ai instanceof NamelessCourierAI) {
+      const mirrored = ai.getMirroredPreference();
+      const learned = mirrored.length > 0
+        ? `他学会了：${mirrored.map(id => this.data.cheats[id]?.name_display || id).join('、')}。`
+        : '他还没有学到你的固定手法。';
+      config.rule_hint = `${this.match.opponentConfig.rule_hint} ${learned}`;
+    }
+    return config;
   }
 
   handleAction(type, payload) {
@@ -93,9 +120,15 @@ class GameController {
         this.updateUI();
         break;
       case 'confirmCheat':
-        this.match.selectCheat('player', payload);
+        {
+          const cheatId = payload && typeof payload === 'object' ? payload.cheatId : payload;
+          const execution = payload && typeof payload === 'object' ? payload.execution : null;
+          this.match.selectCheat('player', cheatId);
+          this.match.setCheatExecution('player', execution);
+        }
         // AI selects cheat
         this.runAICheatSelection();
+        this.match.setCheatExecution('opponent', this.buildAIExecutionResult());
         this.match.resolveCheats();
         this.updateUI();
         this.runAIBet1();
@@ -167,12 +200,32 @@ class GameController {
     this.match.selectCheat('opponent', cheatId);
   }
 
+  buildAIExecutionResult() {
+    if (!this.match.opponent.selectedCheat) return null;
+    const quality = this.match.opponentConfig.id === 'lighthouse_keeper' ? 'shaky' : 'clean';
+    return { quality, label: quality === 'clean' ? '干净' : '迟疑', choice: '对手的动作' };
+  }
+
+  getOpponentAccusationThreshold() {
+    const ai = this.match.opponentAI;
+    let threshold = this.match.opponentConfig.accusationThreshold ?? 0.7;
+    if (ai.getActiveConfig) threshold = ai.getActiveConfig().accusationThreshold ?? threshold;
+    if (this.match.opponentConfig.id === 'lighthouse_keeper') threshold += 0.1;
+    const pressure = this.match.player.suspicion * (this.match.balance.suspicion?.accusation_threshold_per_point || 0);
+    return Math.max(0.25, threshold - pressure);
+  }
+
+  getPlayerThreatLevel() {
+    const tellThreat = this.match.opponent.seenTells.filter(t => t.isReal).length * 0.1;
+    return tellThreat + (this.match.player.disguiseActive ? 0.35 : 0);
+  }
+
   runAIBet1() {
     setTimeout(() => {
       if (!this.match || this.match.phase !== 'BET_1') return;
       const ai = this.match.opponentAI;
       const handStrength = ai.evaluateHandStrength(this.match.opponent.hand, evaluateHand);
-      const threat = this.match.opponent.seenTells.filter(t => t.isReal).length * 0.1;
+      const threat = this.getPlayerThreatLevel();
       const decision = ai.decideBet(handStrength, threat, this.match.opponent.currentBet, this.match.player.currentBet, this.match.opponent.chips, this.match.settings);
       this.match.bet('opponent', decision.action, decision.amount || 0);
       this.updateUI();
@@ -184,7 +237,7 @@ class GameController {
       if (!this.match || (this.match.phase !== 'BET_1' && this.match.phase !== 'BET_2')) return;
       const ai = this.match.opponentAI;
       const handStrength = ai.evaluateHandStrength(this.match.opponent.hand, evaluateHand);
-      const threat = this.match.opponent.seenTells.filter(t => t.isReal).length * 0.1;
+      const threat = this.getPlayerThreatLevel();
       const decision = ai.decideBet(handStrength, threat, this.match.opponent.currentBet, this.match.player.currentBet, this.match.opponent.chips, this.match.settings);
       this.match.bet('opponent', decision.action, decision.amount || 0);
       this.updateUI();
@@ -215,7 +268,7 @@ class GameController {
       if (!this.match || this.match.phase !== 'BET_2') return;
       const ai = this.match.opponentAI;
       const handStrength = ai.evaluateHandStrength(this.match.opponent.hand, evaluateHand);
-      const threat = this.match.opponent.seenTells.filter(t => t.isReal).length * 0.1;
+      const threat = this.getPlayerThreatLevel();
       const decision = ai.decideBet(handStrength, threat, this.match.opponent.currentBet, this.match.player.currentBet, this.match.opponent.chips, this.match.settings);
       this.match.bet('opponent', decision.action, decision.amount || 0);
       this.updateUI();
@@ -232,7 +285,7 @@ class GameController {
     setTimeout(() => {
       if (!this.match || this.match.phase !== 'ACCUSATION_WINDOW') return;
       const ai = this.match.opponentAI;
-      const decision = ai.decideAccusation(this.match.opponent.seenTells);
+      const decision = ai.decideAccusation(this.match.opponent.seenTells, this.getOpponentAccusationThreshold());
       if (decision.accuse) {
         this.match.makeAccusation('opponent', decision.targetCheatId);
         this.updateUI();
