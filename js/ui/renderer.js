@@ -315,6 +315,25 @@ export class Renderer {
     return matches;
   }
 
+  getCheatNamesForIds(ids, cheatsData) {
+    return (ids || [])
+      .map(id => cheatsData?.[id]?.name_display || id)
+      .filter(Boolean);
+  }
+
+  getSuspicionText(weight) {
+    if (weight >= 4) return '危险信号';
+    if (weight >= 3) return '值得留意';
+    if (weight >= 2) return '轻微异样';
+    return '气氛波动';
+  }
+
+  getAmbiguityText(ambiguity) {
+    if (ambiguity === 'low') return '指向较窄';
+    if (ambiguity === 'high') return '解释很多';
+    return '仍需对照';
+  }
+
   renderTells(state, cheatsData) {
     const panel = this.elements.tellPanel;
     const previousCount = panel.children.length;
@@ -327,17 +346,20 @@ export class Renderer {
     for (let idx = 0; idx < tells.length; idx++) {
       const t = tells[idx];
       const entry = document.createElement('div');
-      entry.className = 'tell-entry' + (t.isReal ? '' : ' noise');
+      entry.className = `tell-entry ambiguity-${t.ambiguity || 'medium'}`;
 
-      const cheatMatches = this.findCheatsForTell(t.text, cheatsData);
-      const cheatHint = cheatMatches.length > 0 ? `可能与「${cheatMatches.join(' / ')}」有关` : '来源不明';
-      const confidence = t.isReal ? '线索强度：明显' : '线索强度：模糊';
+      const cheatMatches = this.getCheatNamesForIds(t.possibleCheats, cheatsData);
+      const cheatHint = cheatMatches.length > 0 ? `可能关联：${cheatMatches.join(' / ')}` : '可能关联：未定';
+      const tags = (t.visibleTags || []).join(' · ') || '未分类';
+      const suspicion = this.getSuspicionText(t.suspicionWeight || 1);
+      const ambiguity = this.getAmbiguityText(t.ambiguity);
 
       entry.innerHTML = `
         <div class="tell-text">${t.text}</div>
         <div class="tell-meta">
           <span class="tell-cheat-hint">${cheatHint}</span>
-          <span class="tell-confidence">${confidence}</span>
+          <span class="tell-confidence">${suspicion} · ${ambiguity}</span>
+          <span class="tell-tags">${tags}</span>
         </div>
       `;
 
@@ -416,31 +438,38 @@ export class Renderer {
         this.elements.bettingHint.innerHTML = `<div class="betting-hint-card">${hint}</div>`;
       }
 
+      const toCall = Math.max(0, state.opponent.currentBet - state.player.currentBet);
       const checkBtn = document.createElement('button');
-      checkBtn.textContent = '过牌';
+      checkBtn.className = 'bet-action';
+      checkBtn.innerHTML = '<span class="bet-name">过牌</span><span class="bet-preview">保持体面，继续观察</span>';
+      checkBtn.disabled = toCall > 0;
       checkBtn.addEventListener('click', () => {
         if (this.onAction) this.onAction('bet', { action: 'check' });
       });
       controls.appendChild(checkBtn);
 
       const callBtn = document.createElement('button');
-      callBtn.textContent = '跟注';
+      callBtn.className = 'bet-action';
+      callBtn.innerHTML = `<span class="bet-name">跟注</span><span class="bet-preview">维持故事${toCall > 0 ? `，付 ${toCall}` : ''}</span>`;
       callBtn.addEventListener('click', () => {
         if (this.onAction) this.onAction('bet', { action: 'call' });
       });
       controls.appendChild(callBtn);
 
-      const raiseBtn = document.createElement('button');
-      raiseBtn.textContent = '加注';
-      raiseBtn.addEventListener('click', () => {
-        const amount = parseInt(prompt('加注金额:', '5'), 10) || 5;
-        if (this.onAction) this.onAction('bet', { action: 'raise', amount });
-      });
-      controls.appendChild(raiseBtn);
+      for (const option of state.settings?.bettingOptions || []) {
+        const raiseBtn = document.createElement('button');
+        raiseBtn.className = 'bet-action raise';
+        const suspicion = option.suspicionDelta > 0 ? `，戒心 +${option.suspicionDelta}` : '，低戒心';
+        raiseBtn.innerHTML = `<span class="bet-name">${option.label}</span><span class="bet-preview">${option.meaning}，加 ${option.amount}${suspicion}</span>`;
+        raiseBtn.addEventListener('click', () => {
+          if (this.onAction) this.onAction('bet', { action: 'raise', amount: option.amount });
+        });
+        controls.appendChild(raiseBtn);
+      }
 
       const foldBtn = document.createElement('button');
-      foldBtn.className = 'danger';
-      foldBtn.textContent = '弃牌';
+      foldBtn.className = 'danger bet-action';
+      foldBtn.innerHTML = '<span class="bet-name">弃牌</span><span class="bet-preview">止损；高戒心时降温</span>';
       foldBtn.addEventListener('click', () => {
         if (this.onAction) this.onAction('bet', { action: 'fold' });
       });
@@ -489,9 +518,26 @@ export class Renderer {
     // Round end / next round
     if (state.phase === 'ROUND_END' || state.phase === 'MATCH_END') {
       if (state.matchWinner) {
+        if (state.matchWinner === 'opponent') {
+          const retryBtn = document.createElement('button');
+          retryBtn.className = 'primary';
+          retryBtn.textContent = '再战此人';
+          retryBtn.addEventListener('click', () => {
+            if (this.onAction) this.onAction('retryMatch');
+          });
+          controls.appendChild(retryBtn);
+
+          const recapBtn = document.createElement('button');
+          recapBtn.textContent = '查看失败复盘';
+          recapBtn.addEventListener('click', () => {
+            this.elements.roundRecap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          });
+          controls.appendChild(recapBtn);
+        }
+
         const endBtn = document.createElement('button');
-        endBtn.className = 'primary';
-        endBtn.textContent = '继续旅程';
+        endBtn.className = state.matchWinner === 'opponent' ? '' : 'primary';
+        endBtn.textContent = state.matchWinner === 'opponent' ? '回到旅程' : '继续旅程';
         endBtn.addEventListener('click', () => {
           if (this.onAction) this.onAction('nextRound');
         });
@@ -556,13 +602,13 @@ export class Renderer {
       hints.push(`对手<span class="hint-strong">破绽百出</span>，${pressure}`);
     }
 
-    const realTells = p.seenTells.filter(t => t.isReal).length;
-    if (realTells >= 2) {
-      hints.push(`已观察到<span class="hint-strong">${realTells}处明显破绽</span>`);
-    } else if (realTells === 1) {
-      hints.push('观察到<span class="hint-warn">1处破绽</span>');
+    const evidenceWeight = p.seenTells.reduce((sum, tell) => sum + (tell.suspicionWeight || 1), 0);
+    if (evidenceWeight >= 7) {
+      hints.push('观察互相指向，可整理证据准备看穿');
+    } else if (evidenceWeight >= 3) {
+      hints.push('已有几处异样，适合小注试探');
     } else if (p.seenTells.length > 0) {
-      hints.push('线索尚<span class="hint-weak">不明确</span>');
+      hints.push('线索仍散，先看对方如何接招');
     }
 
     return hints.join(' · ');
@@ -587,9 +633,9 @@ export class Renderer {
       ? `对手暗手：<b>${opponentCheat.name_display}</b> — ${opponentCheat.description}`
       : '对手未使用暗手。';
 
-    const realTells = p.seenTells.filter(t => t.isReal).length;
-    const totalTells = p.seenTells.length;
     const revealTells = reveal?.playerTells || [];
+    const realTells = revealTells.filter(t => t.isReal).length;
+    const totalTells = revealTells.length;
     const realReveal = revealTells.filter(t => t.isReal).map(t => `「${t.text}」来自${t.cheatName}`).join('；');
     const noiseReveal = revealTells.filter(t => !t.isReal).map(t => `「${t.text}」`).join('；');
     const evidenceLine = revealTells.length > 0
@@ -598,36 +644,46 @@ export class Renderer {
 
     let resultLine = '';
     let causeEffect = '';
+    let adviceLine = '';
     if (state.accusationResult) {
       const res = state.accusationResult;
       if (res.correct && res.winner === 'player') {
         resultLine = '你指控成功，抓住了对手的破绽。';
         causeEffect = `对手额外暴露，你赢得 ${res.payout?.total ?? '本轮'} 彩池。`;
+        adviceLine = '下一轮：记住这次真正成立的指向，不必被每一条异样牵走。';
       } else if (res.correct && res.winner === 'opponent') {
         resultLine = '对手指控成功，你的暗手被看穿。';
         causeEffect = `你额外暴露，对手赢得 ${res.payout?.total ?? '本轮'} 彩池。`;
+        adviceLine = '下一轮：先降温或收手，让对手的读法失去连续性。';
       } else if (!res.correct && res.winner === 'player') {
         resultLine = '对手指控失败，反被你利用。';
         causeEffect = `你赢得 ${res.payout?.total ?? '本轮'} 彩池。`;
+        adviceLine = '下一轮：对手会记住这次误判，可以换一种节奏继续施压。';
       } else {
         resultLine = '你指控失败，反被对手利用。';
         causeEffect = `对手赢得 ${res.payout?.total ?? '本轮'} 彩池。`;
+        adviceLine = '下一轮：先找候选暗手的共同标签，再决定是否冒险。';
       }
     } else if (p.folded) {
       resultLine = '你选择弃牌。';
       causeEffect = '对手赢得本轮彩池。';
+      adviceLine = p.suspicion >= 50 ? '下一轮：弃牌已经让桌面降温，适合重新观察。' : '下一轮：弃牌能止损，但也要寻找反击窗口。';
     } else if (opp.folded) {
       resultLine = '对手弃牌。';
       causeEffect = '你赢得本轮彩池。';
+      adviceLine = '下一轮：下注已经成为压力，对手会更在意你的故事。';
     } else if (state.roundWinner === 'player') {
       resultLine = '摊牌结果：你的牌力更强。';
       causeEffect = '你赢得本轮彩池。';
+      adviceLine = '下一轮：诚实赢牌也能保住节奏，不必每轮动手。';
     } else if (state.roundWinner === 'opponent') {
       resultLine = '摊牌结果：对手牌力更强。';
       causeEffect = '对手赢得本轮彩池。';
+      adviceLine = '下一轮：弱牌可以用小注试探，或安静降温等待更好证据。';
     } else {
       resultLine = '摊牌结果：平局。';
       causeEffect = '彩池平分。';
+      adviceLine = '下一轮：平局是重新读桌面的空白。';
     }
 
     container.innerHTML = `
@@ -638,45 +694,70 @@ export class Renderer {
         <div class="recap-section">${opponentCheatLine}</div>
         <div class="recap-section">${evidenceLine}</div>
         <div class="recap-section"><b>${resultLine}</b> ${causeEffect}</div>
+        <div class="recap-section recap-advice">${adviceLine}</div>
       </div>
     `;
   }
 
   showCheatExecutionModal(cheatId, cheat) {
     const modal = this.elements.modalLayer;
-    const choices = this.getExecutionChoices(cheatId);
+    const startTime = performance.now();
+    const duration = 3200;
     modal.style.display = 'flex';
     modal.innerHTML = `
       <div class="modal-overlay execution-overlay">
         <div class="modal-content execution-modal">
           <h2>执行暗手</h2>
           <div class="execution-card">
-            <div class="execution-title">${cheat.name_display}</div>
-            <p>${this.getExecutionPrompt(cheatId)}</p>
-            <div class="execution-meter"><span></span></div>
+             <div class="execution-title">${cheat.name_display}</div>
+             <p>${this.getExecutionPrompt(cheatId)}</p>
+            <div class="execution-meter commitment-meter"><span id="commitment-fill"></span></div>
+            <div class="commitment-zones"><span>早出手</span><span>稳住</span><span>压到最后</span></div>
+            <p class="execution-desc">按下“出手”时，节奏会决定干净、迟疑或失手；也可以收手。</p>
           </div>
-          <div id="execution-options"></div>
+          <button id="execution-commit" class="primary">出手</button>
           <button id="execution-cancel">收手</button>
         </div>
       </div>
     `;
 
-    const options = document.getElementById('execution-options');
-    for (const choice of choices) {
-      const btn = document.createElement('button');
-      btn.className = `execution-option ${choice.quality}`;
-      btn.innerHTML = `<span class="execution-name">${choice.label}</span><span class="execution-desc">${choice.text}</span>`;
-      btn.addEventListener('click', () => {
+    const fill = document.getElementById('commitment-fill');
+    const timer = setInterval(() => {
+      const progress = Math.min(1, (performance.now() - startTime) / duration);
+      fill.style.width = `${progress * 100}%`;
+      if (progress >= 1) {
+        clearInterval(timer);
         modal.style.display = 'none';
-        if (this.onAction) this.onAction('confirmCheat', { cheatId, execution: choice });
-      });
-      options.appendChild(btn);
-    }
+        if (this.onAction) this.onAction('confirmCheat', { cheatId, execution: this.buildExecutionFromTiming(cheatId, 1) });
+      }
+    }, 40);
+
+    document.getElementById('execution-commit').addEventListener('click', () => {
+      clearInterval(timer);
+      const progress = Math.min(1, (performance.now() - startTime) / duration);
+      modal.style.display = 'none';
+      if (this.onAction) this.onAction('confirmCheat', { cheatId, execution: this.buildExecutionFromTiming(cheatId, progress) });
+    });
 
     document.getElementById('execution-cancel').addEventListener('click', () => {
+      clearInterval(timer);
       modal.style.display = 'none';
       if (this.onAction) this.onAction('confirmCheat', { cheatId: null, execution: null });
     });
+  }
+
+  buildExecutionFromTiming(cheatId, progress) {
+    const choices = this.getExecutionChoices(cheatId);
+    if (progress < 0.38) {
+      return { ...choices[0], label: '早出手', choice: `早出手：${choices[0].choice}` };
+    }
+    if (progress < 0.78) {
+      return { ...choices[0], label: '干净', choice: `稳住节奏：${choices[0].choice}` };
+    }
+    if (progress < 0.94) {
+      return { ...choices[1], label: '迟疑', choice: `压到最后：${choices[1].choice}` };
+    }
+    return choices[2];
   }
 
   getExecutionPrompt(cheatId) {
@@ -715,16 +796,33 @@ export class Renderer {
     ];
   }
 
+  buildAccusationEvidence(tells, cheatsData) {
+    if (tells.length === 0) return '<p>你尚未观察到任何线索。</p>';
+    const strongest = [...tells].sort((a, b) => (b.suspicionWeight || 1) - (a.suspicionWeight || 1)).slice(0, 3);
+    const candidateScores = {};
+    for (const tell of tells) {
+      for (const cheatId of tell.possibleCheats || []) {
+        candidateScores[cheatId] = (candidateScores[cheatId] || 0) + (tell.suspicionWeight || 1);
+      }
+    }
+    const candidates = Object.entries(candidateScores)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([cheatId, score]) => `${cheatsData[cheatId]?.name_display || cheatId}(${score})`)
+      .join(' / ');
+    const observations = strongest.map(tell => `「${tell.text}」${this.getSuspicionText(tell.suspicionWeight || 1)}`).join('；');
+    return `
+      <p>最强观察：${observations}</p>
+      <p>候选暗手：${candidates || '未形成稳定候选'}</p>
+    `;
+  }
+
   showAccusationModal(state, cheatsData) {
     const modal = this.elements.modalLayer;
     modal.style.display = 'flex';
 
-    // Build evidence summary from current public state
     const tells = state.player.seenTells || [];
-    const realTells = tells.filter(t => t.isReal).length;
-    const evidenceSummary = tells.length > 0
-      ? `你已观察到 ${tells.length} 条线索，其中 ${realTells} 条较为明显。`
-      : '你尚未观察到任何线索。';
+    const evidenceSummary = this.buildAccusationEvidence(tells, cheatsData);
     const correctMultiplier = state.accusation?.correctRewardMultiplier || 1;
     const wrongMultiplier = state.accusation?.wrongPenaltyMultiplier || 1.5;
 
@@ -734,7 +832,7 @@ export class Renderer {
           <h2>我看穿你了！</h2>
           <div class="accusation-evidence">
             <div class="evidence-title">当前证据</div>
-            <p>${evidenceSummary}</p>
+            ${evidenceSummary}
           </div>
           <div class="accusation-consequences">
             <div class="consequences-title">后果</div>
@@ -761,7 +859,12 @@ export class Renderer {
     for (const [key, cheat] of Object.entries(cheatsData)) {
       const btn = document.createElement('button');
       btn.className = 'accusation-option';
-      btn.innerHTML = `<span class="accusation-name">${cheat.name_display}</span><span class="accusation-desc">${cheat.description}</span>`;
+      const supports = tells
+        .filter(tell => (tell.possibleCheats || []).includes(key))
+        .flatMap(tell => tell.visibleTags || [])
+        .slice(0, 3);
+      const supportText = supports.length > 0 ? `支持标签：${Array.from(new Set(supports)).join(' / ')}` : '支持标签：暂不成形';
+      btn.innerHTML = `<span class="accusation-name">${cheat.name_display}</span><span class="accusation-desc">${cheat.description}</span><span class="accusation-desc">${supportText}</span>`;
       btn.addEventListener('click', () => {
         modal.style.display = 'none';
         if (this.onAction) this.onAction('accuse', key);
@@ -788,6 +891,7 @@ export class Renderer {
   }
 
   showNarrative(text, onContinue) {
+    document.getElementById('narrative-overlay')?.remove();
     const overlay = document.createElement('div');
     overlay.id = 'narrative-overlay';
     overlay.innerHTML = `
@@ -802,6 +906,7 @@ export class Renderer {
   }
 
   showMenu(levels, onSelect) {
+    document.getElementById('menu-screen')?.remove();
     const menu = document.createElement('div');
     menu.id = 'menu-screen';
     menu.innerHTML = `

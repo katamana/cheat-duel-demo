@@ -168,6 +168,9 @@ class GameController {
           this.runAITurn();
         }
         break;
+      case 'retryMatch':
+        this.startMatch(this.match.opponentConfig.id);
+        break;
       case 'returnMenu':
         this.showMenu();
         break;
@@ -216,8 +219,23 @@ class GameController {
   }
 
   getPlayerThreatLevel() {
-    const tellThreat = this.match.opponent.seenTells.filter(t => t.isReal).length * 0.1;
-    return tellThreat + (this.match.player.disguiseActive ? 0.35 : 0);
+    const visibleTellPressure = this.match.opponent.seenTells.reduce((sum, tell) => sum + (tell.suspicionWeight || 1), 0) * 0.035;
+    const suspicionPressure = this.match.player.suspicion * 0.004;
+    const betPressure = this.match.player.currentBet > this.match.opponent.currentBet ? 0.08 : 0;
+    return visibleTellPressure + suspicionPressure + betPressure + (this.match.player.disguiseActive ? 0.25 : 0);
+  }
+
+  getAIReadContext() {
+    const ai = this.match.opponentAI;
+    const activeConfig = ai.getActiveConfig ? ai.getActiveConfig() : this.match.opponentConfig;
+    return {
+      suspicion: this.match.player.suspicion,
+      playerBet: this.match.player.currentBet,
+      opponentBet: this.match.opponent.currentBet,
+      maxRaise: this.match.settings.max_raise,
+      executionQuality: this.match.player.executionQuality,
+      noiseSensitivity: activeConfig.noiseSensitivity ?? this.match.opponentConfig.noiseSensitivity
+    };
   }
 
   runAIBet1() {
@@ -285,7 +303,7 @@ class GameController {
     setTimeout(() => {
       if (!this.match || this.match.phase !== 'ACCUSATION_WINDOW') return;
       const ai = this.match.opponentAI;
-      const decision = ai.decideAccusation(this.match.opponent.seenTells, this.getOpponentAccusationThreshold());
+      const decision = ai.decideAccusation(this.match.opponent.seenTells, this.getOpponentAccusationThreshold(), this.getAIReadContext());
       if (decision.accuse) {
         this.match.makeAccusation('opponent', decision.targetCheatId);
         this.updateUI();

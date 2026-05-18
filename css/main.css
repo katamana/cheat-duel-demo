@@ -330,16 +330,9 @@
   }
 }
 
-.tell-entry.noise {
-  border-left-color: var(--color-text-faded);
-  opacity: 0.75;
-  background: rgba(107, 93, 74, 0.06);
-}
-
-/* Real tell glow effect */
-.tell-entry:not(.noise) {
-  box-shadow: 0 0 8px rgba(232, 201, 137, 0.1);
-}
+.tell-entry.ambiguity-low { border-left-color: var(--color-accent-gold); }
+.tell-entry.ambiguity-medium { border-left-color: var(--color-accent-warm); }
+.tell-entry.ambiguity-high { border-left-color: var(--color-text-faded); }
 
 .tell-entry .tell-text {
   font-size: 13px;
@@ -364,12 +357,9 @@
   white-space: nowrap;
 }
 
-.tell-entry.noise .tell-confidence {
+.tell-entry .tell-tags {
   color: var(--color-text-faded);
-}
-
-.tell-entry:not(.noise) .tell-confidence {
-  color: var(--color-tell-glow);
+  font-family: var(--font-ui);
 }
 
 /* ---------- Player Area ---------- */
@@ -528,6 +518,28 @@
   padding: 10px;
 }
 
+.bet-action {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+}
+
+.bet-action .bet-name {
+  font-weight: bold;
+}
+
+.bet-action .bet-preview {
+  color: var(--color-text-faded);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.bet-action:hover:not(:disabled) .bet-preview,
+.bet-action.danger .bet-preview {
+  color: rgba(10, 20, 40, 0.82);
+}
+
 /* ---------- Log Panel ---------- */
 #log-panel {
   max-height: 100px;
@@ -661,6 +673,12 @@
   color: var(--color-text-main);
   line-height: 1.6;
   margin: 6px 0;
+}
+
+.round-recap-card .recap-advice {
+  border-left: 3px solid var(--color-accent-gold);
+  padding-left: 9px;
+  font-style: italic;
 }
 
 .round-recap-card .recap-section:nth-child(3),
@@ -847,11 +865,20 @@
 
 .execution-meter span {
   display: block;
-  width: 42%;
+  width: 0;
   height: 100%;
   background: linear-gradient(90deg, var(--color-danger), var(--color-accent-gold), var(--color-danger));
   border-radius: inherit;
-  animation: executionPulse 1.4s ease-in-out infinite alternate;
+  transition: width 40ms linear;
+}
+
+.commitment-zones {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  color: var(--color-text-faded);
+  font-family: var(--font-ui);
+  font-size: 10px;
 }
 
 @keyframes executionPulse {
