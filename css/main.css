@@ -393,6 +393,65 @@
   color: var(--color-text-main);
 }
 
+.suspicion-warning {
+  color: var(--color-danger) !important;
+  animation: leakPulse 1.5s ease infinite;
+}
+
+#opponent-area.suspicion-high {
+  box-shadow: var(--shadow-gold-soft), 0 0 24px rgba(155, 56, 56, 0.28);
+  border-color: rgba(155, 56, 56, 0.5);
+}
+
+#suspicion-panel {
+  max-width: 520px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.suspicion-card {
+  background: rgba(10, 20, 40, 0.45);
+  border: 1px solid rgba(201, 169, 97, 0.25);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  color: var(--color-accent-warm);
+  font-size: 12px;
+}
+
+.suspicion-card.high {
+  border-color: rgba(155, 56, 56, 0.55);
+  box-shadow: 0 0 14px rgba(155, 56, 56, 0.2);
+}
+
+.suspicion-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--font-ui);
+  margin-bottom: 6px;
+}
+
+.suspicion-track {
+  height: 7px;
+  background: rgba(244, 232, 208, 0.18);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.suspicion-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent-gold), var(--color-danger));
+  border-radius: inherit;
+  transition: width var(--transition-medium);
+}
+
+.suspicion-reason {
+  margin-top: 5px;
+  color: var(--color-text-faded);
+  font-size: 11px;
+  text-align: center;
+}
+
 /* ---------- Cheat Buttons ---------- */
 #cheat-buttons {
   display: flex;
@@ -413,6 +472,7 @@
   align-items: center;
   gap: 2px;
   min-width: 120px;
+  position: relative;
 }
 
 .cheat-btn .cheat-name {
@@ -437,6 +497,15 @@
   color: var(--color-bg-deep);
   box-shadow: 0 0 10px rgba(201, 169, 97, 0.4);
   transform: translateY(-2px);
+}
+
+.cheat-btn.active::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  box-shadow: 0 0 14px rgba(232, 201, 137, 0.35);
+  pointer-events: none;
 }
 
 .cheat-btn.active .cheat-meta {
@@ -484,6 +553,12 @@
   border-bottom: none;
   opacity: 1;
   color: var(--color-tell-glow);
+  animation: logInkIn 0.45s ease;
+}
+
+@keyframes logInkIn {
+  0% { opacity: 0; filter: blur(2px); }
+  100% { opacity: 1; filter: blur(0); }
 }
 
 /* ---------- Opponent Rules ---------- */
@@ -586,6 +661,13 @@
   color: var(--color-text-main);
   line-height: 1.6;
   margin: 6px 0;
+}
+
+.round-recap-card .recap-section:nth-child(3),
+.round-recap-card .recap-section:nth-child(4) {
+  background: rgba(201, 169, 97, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
 }
 
 /* ---------- Modal / Accusation ---------- */
@@ -728,6 +810,84 @@
 
 .accusation-option:hover:not(:disabled) .accusation-desc {
   color: rgba(10, 20, 40, 0.8);
+}
+
+/* ---------- Dark Hand Execution ---------- */
+.execution-overlay {
+  background: rgba(10, 20, 40, 0.95);
+}
+
+.execution-modal h2 {
+  color: var(--color-accent-gold);
+}
+
+.execution-card {
+  background: rgba(10, 20, 40, 0.06);
+  border: 1px solid rgba(201, 169, 97, 0.25);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.execution-title {
+  font-family: var(--font-title);
+  color: var(--color-accent-gold);
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.execution-meter {
+  height: 8px;
+  background: rgba(10, 20, 40, 0.18);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.execution-meter span {
+  display: block;
+  width: 42%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-danger), var(--color-accent-gold), var(--color-danger));
+  border-radius: inherit;
+  animation: executionPulse 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes executionPulse {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(138%); }
+}
+
+#execution-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.execution-option {
+  text-align: left;
+  padding: 10px 12px;
+  background: rgba(244, 232, 208, 0.7);
+  border: 1px solid rgba(201, 169, 97, 0.35);
+}
+
+.execution-option.clean { border-left: 4px solid var(--color-tell-glow); }
+.execution-option.shaky { border-left: 4px solid var(--color-accent-gold); }
+.execution-option.failed { border-left: 4px solid var(--color-danger); }
+
+.execution-name {
+  display: block;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.execution-desc {
+  display: block;
+  font-size: 11px;
+  color: var(--color-text-faded);
+  line-height: 1.4;
 }
 
 /* ---------- Narrative Overlay ---------- */
