@@ -54,6 +54,9 @@ export class TellEngine {
     if (sideState.activeCheats.includes('smoke')) {
       mod -= 0.3;
     }
+    if (sideState.executionExposureMod) {
+      mod += sideState.executionExposureMod;
+    }
     // reverse tell increases player exposure (applied externally by match state)
     return mod;
   }

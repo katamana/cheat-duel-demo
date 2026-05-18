@@ -38,7 +38,14 @@ export class MatchState {
       folded: false,
       drawCount: 0,
       seenTells: [],
-      disguiseActive: false
+      disguiseActive: false,
+      suspicion: 0,
+      lastSuspicionChange: null,
+      executionResult: null,
+      executionQuality: null,
+      executionLeakBonus: 0,
+      executionExposureMod: 0,
+      pendingExecution: null
     };
 
     this.opponent = {
@@ -54,7 +61,14 @@ export class MatchState {
       folded: false,
       drawCount: 0,
       seenTells: [],
-      disguiseActive: false
+      disguiseActive: false,
+      suspicion: 0,
+      lastSuspicionChange: null,
+      executionResult: null,
+      executionQuality: null,
+      executionLeakBonus: 0,
+      executionExposureMod: 0,
+      pendingExecution: null
     };
 
     this.log = [];
@@ -67,6 +81,11 @@ export class MatchState {
     this.playerDarkHandUsage = [];
     this.bet1Settled = false;
     this.bet2Settled = false;
+    this.peekedOpponentCard = null;
+  }
+
+  clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
   }
 
   logEvent(text) {
@@ -93,6 +112,12 @@ export class MatchState {
     this.player.drawCount = 0;
     this.player.seenTells = [];
     this.player.disguiseActive = false;
+    this.player.lastSuspicionChange = null;
+    this.player.executionResult = null;
+    this.player.executionQuality = null;
+    this.player.executionLeakBonus = 0;
+    this.player.executionExposureMod = 0;
+    this.player.pendingExecution = null;
 
     this.opponent.currentBet = 0;
     this.opponent.totalBet = 0;
@@ -103,6 +128,12 @@ export class MatchState {
     this.opponent.drawCount = 0;
     this.opponent.seenTells = [];
     this.opponent.disguiseActive = false;
+    this.opponent.lastSuspicionChange = null;
+    this.opponent.executionResult = null;
+    this.opponent.executionQuality = null;
+    this.opponent.executionLeakBonus = 0;
+    this.opponent.executionExposureMod = 0;
+    this.opponent.pendingExecution = null;
 
     this.accusationWindowOpen = false;
     this.accusationResult = null;
@@ -110,6 +141,7 @@ export class MatchState {
     this.reverseTellActive = false;
     this.bet1Settled = false;
     this.bet2Settled = false;
+    this.peekedOpponentCard = null;
 
     // decrement cooldowns
     this.cheatEngine.decrementCooldowns(this.player);
@@ -149,6 +181,67 @@ export class MatchState {
     return { success: true };
   }
 
+  setCheatExecution(side, execution) {
+    const state = side === 'player' ? this.player : this.opponent;
+    state.pendingExecution = execution || null;
+    return { success: true };
+  }
+
+  getSuspicionStage(value) {
+    const stages = this.balance.suspicion?.stages || [];
+    const found = stages.find(stage => value <= stage.max);
+    return found ? found.label : '逼近';
+  }
+
+  changeSuspicion(side, delta, reason) {
+    const state = side === 'player' ? this.player : this.opponent;
+    const scaledDelta = side === 'player'
+      ? Math.round(delta * (this.opponentConfig.suspicionTolerance || 1))
+      : delta;
+    const next = this.clamp(state.suspicion + scaledDelta, 0, 100);
+    const applied = next - state.suspicion;
+    state.suspicion = next;
+    state.lastSuspicionChange = applied === 0 ? null : { amount: applied, reason, stage: this.getSuspicionStage(next) };
+    return applied;
+  }
+
+  applyExecutionPressure(side, cheatId) {
+    const state = side === 'player' ? this.player : this.opponent;
+    if (!cheatId) {
+      state.executionResult = null;
+      state.executionQuality = null;
+      state.executionLeakBonus = 0;
+      state.executionExposureMod = 0;
+      return;
+    }
+
+    const execution = state.pendingExecution || { quality: 'clean', choice: '从容完成', label: '从容' };
+    const quality = execution.quality || 'clean';
+    const tuning = this.balance.execution?.[quality] || this.balance.execution?.clean || { leak_bonus: 0, suspicion_delta: 0, exposure_mod: 0 };
+    state.executionQuality = quality;
+    state.executionLeakBonus = tuning.leak_bonus || 0;
+    state.executionExposureMod = tuning.exposure_mod || 0;
+    state.executionResult = {
+      cheatId,
+      quality,
+      label: execution.label || quality,
+      choice: execution.choice || '',
+      leakBonus: state.executionLeakBonus,
+      exposureMod: state.executionExposureMod,
+      suspicionDelta: tuning.suspicion_delta || 0
+    };
+
+    if (state.executionLeakBonus > 0) state.leak += state.executionLeakBonus;
+    if (tuning.suspicion_delta) this.changeSuspicion(side, tuning.suspicion_delta, this.getExecutionSuspicionReason(quality));
+    state.pendingExecution = null;
+  }
+
+  getExecutionSuspicionReason(quality) {
+    if (quality === 'failed') return '动作失手';
+    if (quality === 'shaky') return '动作迟疑';
+    return '暗手执行';
+  }
+
   resolveCheats() {
     if (this.phase !== 'CHEAT_SELECTION') return;
     // ensure both sides have made a choice (null = pass)
@@ -156,15 +249,21 @@ export class MatchState {
 
     // apply player cheat
     if (this.player.selectedCheat) {
+      this.applyExecutionPressure('player', this.player.selectedCheat);
       const res = this.cheatEngine.applyCheat(this.player, this.player.selectedCheat, this.deck);
       this.player.lastCheatExtra = res.extra || null;
       if (res.extra && res.extra.disguise) this.player.disguiseActive = true;
       if (this.player.selectedCheat) this.playerDarkHandUsage.push(this.player.selectedCheat);
+      if (res.extra && res.extra.peek) {
+        const peekIndex = 0;
+        this.peekedOpponentCard = { index: peekIndex, card: this.opponent.hand[peekIndex] };
+      }
       this.logPlayerCheatResult(res.extra || {});
     }
 
     // apply opponent cheat
     if (this.opponent.selectedCheat) {
+      this.applyExecutionPressure('opponent', this.opponent.selectedCheat);
       const res = this.cheatEngine.applyCheat(this.opponent, this.opponent.selectedCheat, this.deck);
       this.opponent.lastCheatExtra = res.extra || null;
       if (res.extra && res.extra.disguise) this.opponent.disguiseActive = true;
@@ -174,6 +273,7 @@ export class MatchState {
     if (this.opponentConfig.id === 'nameless_courier' && this.opponentConfig.special_abilities.includes('reverse_tell')) {
       if (this.round % 3 === 0) {
         this.reverseTellActive = true;
+        this.changeSuspicion('player', this.balance.suspicion?.reverse_tell_delta || 0, '反向流露');
         this.logEvent('无名邮差发动了反向流露。你感到桌对面的目光，比平时更深。');
       }
     }
@@ -187,8 +287,8 @@ export class MatchState {
     if (!cheat) return;
 
     if (cheat.effect === 'peek') {
-      const card = this.opponent.hand[0];
-      if (card) this.logEvent(`你窥见了对手的一张暗牌：${this.formatCard(card)}。`);
+      const peeked = this.peekedOpponentCard;
+      if (peeked && peeked.card) this.logEvent(`你窥见了对手的一张暗牌：${this.formatCard(peeked.card)}。`);
     } else if (cheat.effect === 'card_counting') {
       this.logEvent(extra.cardCountingResult ? '你默数牌堆：顶上三张里有 A 或 K。' : '你默数牌堆：顶上三张里没有 A 或 K。');
     } else if (cheat.effect === 'disguise') {
@@ -207,10 +307,16 @@ export class MatchState {
     return `${card.rank}${suitSymbols[card.suit] || ''}`;
   }
 
+  getCheatName(cheatId) {
+    if (!cheatId) return '未使用暗手';
+    return this.cheatsData[cheatId]?.name_display || cheatId;
+  }
+
   computeTells() {
     // player sees opponent tells
     if (this.opponent.selectedCheat) {
       let exposureMod = this.tellEngine.computeExposureMod(this.opponent, this.player);
+      exposureMod += (this.opponent.suspicion || 0) * (this.balance.suspicion?.exposure_per_point || 0);
       const tells = this.tellEngine.generateTells('opponent', this.opponent.selectedCheat, this.cheatsData, this.opponentConfig, exposureMod);
       this.player.seenTells.push(...tells);
       for (const t of tells) this.opponent.leak += t.leak_amount;
@@ -223,6 +329,7 @@ export class MatchState {
     // opponent sees player tells
     if (this.player.selectedCheat) {
       let exposureMod = this.tellEngine.computeExposureMod(this.player, this.opponent);
+      exposureMod += (this.player.suspicion || 0) * (this.balance.suspicion?.exposure_per_point || 0);
       if (this.reverseTellActive) exposureMod += 0.4;
       const oppConfig = { tellLeakage: 1.0 };
       const tells = this.tellEngine.generateTells('player', this.player.selectedCheat, this.cheatsData, oppConfig, exposureMod);
@@ -256,6 +363,10 @@ export class MatchState {
     if (!res.success) return res;
 
     this.pot += res.amount;
+
+    if (side === 'player' && action === 'raise' && amount >= this.settings.max_raise) {
+      this.changeSuspicion('player', this.balance.suspicion?.heavy_bet_delta || 0, '押注过重');
+    }
 
     if (res.folded) {
       sideState.folded = true;
@@ -298,6 +409,13 @@ export class MatchState {
     }
     state.drawCount = indices.length;
 
+    // invalidate peek if opponent drew away the revealed card
+    if (side === 'opponent' && this.peekedOpponentCard) {
+      if (indices.includes(this.peekedOpponentCard.index)) {
+        this.peekedOpponentCard = null;
+      }
+    }
+
     // if both have drawn, move to bet 2
     if (this.player.drawCount !== undefined && this.opponent.drawCount !== undefined) {
       // In this simplified flow, we track if both sides have acted.
@@ -326,16 +444,28 @@ export class MatchState {
     this.accusationWindowOpen = false;
 
     if (correct) {
-      // accuser wins the round pot + extra leak
       accused.leak += 15;
+      this.changeSuspicion(this.accusationResult?.loser || (side === 'player' ? 'opponent' : 'player'), 8, '看穿成立');
       this.roundWinner = side;
       this.logEvent(`${side === 'player' ? '你' : '对手'} 指控成功！`);
-      this.accusationResult = { correct: true, winner: side, cheatId: actualCheat };
+      this.accusationResult = {
+        correct: true,
+        winner: side,
+        loser: side === 'player' ? 'opponent' : 'player',
+        cheatId: actualCheat,
+        multiplier: this.balance.accusation.correct_reward_multiplier
+      };
     } else {
-      // accused wins 1.5x pot
       this.roundWinner = side === 'player' ? 'opponent' : 'player';
+      this.changeSuspicion(side, 6, '错误看穿');
       this.logEvent(`${side === 'player' ? '你' : '对手'} 指控失败！`);
-      this.accusationResult = { correct: false, winner: this.roundWinner, cheatId: actualCheat };
+      this.accusationResult = {
+        correct: false,
+        winner: this.roundWinner,
+        loser: side,
+        cheatId: actualCheat,
+        multiplier: this.balance.accusation.wrong_penalty_multiplier
+      };
     }
 
     this.phase = 'SHOWDOWN';
@@ -359,10 +489,19 @@ export class MatchState {
       this.player.chips += this.pot;
       this.roundWinner = 'player';
     } else if (this.accusationResult) {
-      // accusation resolves: winner takes the pot (prototype simplification)
-      const winner = this.accusationResult.winner;
-      const state = winner === 'player' ? this.player : this.opponent;
-      state.chips += this.pot;
+      const winnerState = this.accusationResult.winner === 'player' ? this.player : this.opponent;
+      const loserState = this.accusationResult.loser === 'player' ? this.player : this.opponent;
+      const multiplier = this.accusationResult.multiplier || 1;
+      const basePot = this.pot;
+      const extra = Math.min(loserState.chips, Math.max(0, Math.floor(basePot * (multiplier - 1))));
+      loserState.chips -= extra;
+      winnerState.chips += basePot + extra;
+      this.accusationResult.payout = {
+        basePot,
+        extra,
+        total: basePot + extra,
+        multiplier
+      };
     } else {
       // showdown by hand strength
       const cmp = compareHands(this.player.hand, this.opponent.hand);
@@ -406,6 +545,7 @@ export class MatchState {
   }
 
   getPublicState() {
+    const roundEnded = this.phase === 'ROUND_END' || this.state === 'MATCH_END';
     return {
       phase: this.phase,
       round: this.round,
@@ -414,6 +554,10 @@ export class MatchState {
       settings: {
         ante: this.settings.ante,
         maxRaise: this.settings.max_raise
+      },
+      accusation: {
+        correctRewardMultiplier: this.balance.accusation.correct_reward_multiplier,
+        wrongPenaltyMultiplier: this.balance.accusation.wrong_penalty_multiplier
       },
       player: {
         chips: this.player.chips,
@@ -426,7 +570,14 @@ export class MatchState {
         selectedCheat: this.player.selectedCheat,
         lastCheatExtra: this.player.lastCheatExtra,
         activeCheats: this.player.activeCheats,
-        cooldowns: this.player.cooldowns
+        cooldowns: this.player.cooldowns,
+        disguiseActive: this.player.disguiseActive,
+        suspicion: this.player.suspicion,
+        suspicionStage: this.getSuspicionStage(this.player.suspicion),
+        lastSuspicionChange: this.player.lastSuspicionChange,
+        executionResult: this.player.executionResult,
+        executionQuality: this.player.executionQuality,
+        executionLeakBonus: this.player.executionLeakBonus
       },
       opponent: {
         chips: this.opponent.chips,
@@ -436,11 +587,30 @@ export class MatchState {
         folded: this.opponent.folded,
         drawCount: this.opponent.drawCount,
         seenTells: this.opponent.seenTells,
-        selectedCheat: this.opponent.selectedCheat,
-        lastCheatExtra: this.opponent.lastCheatExtra,
-        activeCheats: this.opponent.activeCheats,
-        cooldowns: this.opponent.cooldowns
+        selectedCheat: roundEnded ? this.opponent.selectedCheat : null,
+        lastCheatExtra: roundEnded ? this.opponent.lastCheatExtra : null,
+        activeCheats: roundEnded ? this.opponent.activeCheats : [],
+        cooldowns: roundEnded ? this.opponent.cooldowns : {},
+        peekedCard: this.peekedOpponentCard,
+        disguiseActive: roundEnded ? this.opponent.disguiseActive : false,
+        suspicion: this.opponent.suspicion,
+        suspicionStage: this.getSuspicionStage(this.opponent.suspicion),
+        lastSuspicionChange: this.opponent.lastSuspicionChange,
+        executionResult: roundEnded ? this.opponent.executionResult : null,
+        executionQuality: roundEnded ? this.opponent.executionQuality : null
       },
+      roundReveal: roundEnded ? {
+        playerCheatId: this.player.selectedCheat,
+        playerCheatName: this.getCheatName(this.player.selectedCheat),
+        opponentCheatId: this.opponent.selectedCheat,
+        opponentCheatName: this.getCheatName(this.opponent.selectedCheat),
+        playerTells: this.player.seenTells.map(tell => ({
+          text: tell.text,
+          isReal: tell.isReal,
+          cheatId: tell.cheatId,
+          cheatName: this.getCheatName(tell.cheatId)
+        }))
+      } : null,
       accusationWindowOpen: this.accusationWindowOpen,
       accusationResult: this.accusationResult,
       roundWinner: this.roundWinner,
