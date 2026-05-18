@@ -11,6 +11,7 @@
     "tellLeakage": 1.8,
     "betPattern": "tight",
     "starting_chips": 80,
+    "rule_hint": "下注保守，破绽暴露率极高，几乎不会指控你。适合练习暗手与观察流露。",
     "notes": "几乎不会看穿玩家；自己出暗手时破绽暴露率超高；下注保守。这局玩家很难输。"
   },
   "luca": {
@@ -50,7 +51,8 @@
       }
     ],
     "mask_switch_interval": "every_2_rounds",
-    "starting_chips": 150
+    "starting_chips": 150,
+    "rule_hint": "每2轮切换面具，不同面具偏好不同暗手、下注风格迥异。观察他的气质变化。"
   },
   "nameless_courier": {
     "id": "nameless_courier",
@@ -65,6 +67,7 @@
     "betPattern": "balanced",
     "starting_chips": 200,
     "special_abilities": ["reverse_tell"],
+    "rule_hint": "模仿你的行为模式，每3轮发动反向流露。你看到的破绽可能是陷阱。",
     "notes": "AI在每轮开始时统计玩家前两关的统计数据，本场战斗动态模仿玩家。这是一面镜子。"
   }
 }

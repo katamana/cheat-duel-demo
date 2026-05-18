@@ -5,6 +5,9 @@
     "name_in_world": "偷换措辞",
     "category": "control",
     "description": "将一张手牌替换为牌堆顶第二张",
+    "benefit": "直接改善手牌质量",
+    "risk": "抽牌动作暴露，流露增加",
+    "use_case": "手牌较差、需要翻盘时使用",
     "cooldown_rounds": 1,
     "effect": "swap_one",
     "tell_pool": [
@@ -34,6 +37,9 @@
     "name_in_world": "窥探",
     "category": "info",
     "description": "偷看对手1张暗牌",
+    "benefit": "掌握对手牌力信息",
+    "risk": "视线偏移被察觉，流露增加",
+    "use_case": "不确定对手强弱、需要情报时使用",
     "cooldown_rounds": 1,
     "effect": "peek",
     "tell_pool": [
@@ -57,6 +63,9 @@
     "name_in_world": "夸大",
     "category": "deception",
     "description": "将一张小牌摊牌时显示为大牌（直到被看穿才揭示）",
+    "benefit": "虚张声势，吓退对手",
+    "risk": "下注模式异常，极易被看穿",
+    "use_case": "手牌弱但想逼退对手时使用",
     "cooldown_rounds": 1,
     "effect": "disguise",
     "tell_pool": [
@@ -80,6 +89,9 @@
     "name_in_world": "故作镇定",
     "category": "deception",
     "description": "本轮自己其他暗手的暴露率全部 -30%",
+    "benefit": "掩盖其他暗手痕迹",
+    "risk": "过分镇定本身也是破绽",
+    "use_case": "计划连续使用暗手、或已暴露较多时使用",
     "cooldown_rounds": 2,
     "effect": "smoke",
     "tell_pool": [
@@ -97,6 +109,9 @@
     "name_in_world": "回避",
     "category": "control",
     "description": "自己抽牌时从第二张取（绕过最顶上那张）",
+    "benefit": "避开牌堆顶的不利牌",
+    "risk": "拨牌动作暴露，流露增加",
+    "use_case": "换牌阶段、怀疑牌堆顶牌不利时使用",
     "cooldown_rounds": 1,
     "effect": "second_deal",
     "tell_pool": [
@@ -120,6 +135,9 @@
     "name_in_world": "默数",
     "category": "info",
     "description": "显示牌堆顶3张是否含有A或K",
+    "benefit": "预知牌堆高牌信息",
+    "risk": "默念和点数动作暴露",
+    "use_case": "换牌前评估是否值得抽牌时使用",
     "cooldown_rounds": 1,
     "effect": "card_counting",
     "tell_pool": [
