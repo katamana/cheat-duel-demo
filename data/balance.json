@@ -1,0 +1,47 @@
+{
+  "global": {
+    "starting_money": 0,
+    "max_rounds_per_match": 5
+  },
+  "match_settings": {
+    "lighthouse_keeper": {
+      "player_chips": 100,
+      "opponent_chips": 80,
+      "ante": 5,
+      "max_raise": 10
+    },
+    "luca": {
+      "player_chips": 100,
+      "opponent_chips": 150,
+      "ante": 10,
+      "max_raise": 20
+    },
+    "nameless_courier": {
+      "player_chips": 100,
+      "opponent_chips": 200,
+      "ante": 15,
+      "max_raise": 30
+    }
+  },
+  "tells": {
+    "leak_threshold_warning": 60,
+    "leak_threshold_critical": 100,
+    "leak_bonus_exposure_when_high": 0.3
+  },
+  "accusation": {
+    "correct_reward_multiplier": 1.0,
+    "wrong_penalty_multiplier": 1.5,
+    "window_seconds": 5
+  },
+  "hand_ranks": {
+    "straight_flush": 8,
+    "four_of_a_kind": 7,
+    "full_house": 6,
+    "flush": 5,
+    "straight": 4,
+    "three_of_a_kind": 3,
+    "two_pair": 2,
+    "one_pair": 1,
+    "high_card": 0
+  }
+}
