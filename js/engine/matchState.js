@@ -411,6 +411,10 @@ export class MatchState {
       round: this.round,
       maxRounds: this.maxRounds,
       pot: this.pot,
+      settings: {
+        ante: this.settings.ante,
+        maxRaise: this.settings.max_raise
+      },
       player: {
         chips: this.player.chips,
         hand: this.player.hand,

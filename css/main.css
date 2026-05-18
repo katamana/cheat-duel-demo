@@ -341,6 +341,37 @@
   box-shadow: 0 0 8px rgba(232, 201, 137, 0.1);
 }
 
+.tell-entry .tell-text {
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+
+.tell-entry .tell-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--color-text-faded);
+  flex-wrap: wrap;
+}
+
+.tell-entry .tell-cheat-hint {
+  color: var(--color-accent-warm);
+}
+
+.tell-entry .tell-confidence {
+  font-family: var(--font-ui);
+  white-space: nowrap;
+}
+
+.tell-entry.noise .tell-confidence {
+  color: var(--color-text-faded);
+}
+
+.tell-entry:not(.noise) .tell-confidence {
+  color: var(--color-tell-glow);
+}
+
 /* ---------- Player Area ---------- */
 #player-area {
   display: flex;
@@ -377,6 +408,28 @@
   border-radius: var(--radius-md);
   background: rgba(244, 232, 208, 0.7);
   transition: all var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 120px;
+}
+
+.cheat-btn .cheat-name {
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.cheat-btn .cheat-meta {
+  font-size: 10px;
+  color: var(--color-text-faded);
+  line-height: 1.4;
+  max-width: 200px;
+}
+
+.cheat-btn .cheat-cd {
+  font-size: 11px;
+  color: var(--color-danger);
 }
 
 .cheat-btn.active {
@@ -384,7 +437,10 @@
   color: var(--color-bg-deep);
   box-shadow: 0 0 10px rgba(201, 169, 97, 0.4);
   transform: translateY(-2px);
-  font-weight: bold;
+}
+
+.cheat-btn.active .cheat-meta {
+  color: rgba(10, 20, 40, 0.85);
 }
 
 .cheat-btn.cooldown {
@@ -428,6 +484,108 @@
   border-bottom: none;
   opacity: 1;
   color: var(--color-tell-glow);
+}
+
+/* ---------- Opponent Rules ---------- */
+.opponent-rules-card {
+  background: rgba(10, 20, 40, 0.5);
+  border: 1px solid rgba(201, 169, 97, 0.3);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--color-accent-warm);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.opponent-rules-card .rules-label {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  color: var(--color-accent-gold);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.opponent-rules-card .rules-text {
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+/* ---------- Betting Hint ---------- */
+#betting-hint {
+  margin: 8px 0;
+}
+
+.betting-hint-card {
+  background: rgba(10, 20, 40, 0.55);
+  border: 1px solid rgba(201, 169, 97, 0.25);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--color-accent-warm);
+  line-height: 1.6;
+  text-align: center;
+}
+
+.betting-hint-card .hint-strong {
+  color: var(--color-tell-glow);
+  font-weight: bold;
+}
+
+.betting-hint-card .hint-weak {
+  color: var(--color-text-faded);
+}
+
+.betting-hint-card .hint-mid {
+  color: var(--color-accent-gold);
+}
+
+.betting-hint-card .hint-danger {
+  color: var(--color-danger);
+  font-weight: bold;
+}
+
+.betting-hint-card .hint-warn {
+  color: #c4a060;
+}
+
+/* ---------- Round Recap ---------- */
+#round-recap {
+  margin: 8px 0;
+}
+
+.round-recap-card {
+  background: rgba(244, 232, 208, 0.95);
+  border: 2px solid var(--color-accent-gold);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: var(--shadow-gold-soft), 0 4px 16px rgba(0,0,0,0.2);
+  animation: recapSlideIn 0.5s ease;
+}
+
+@keyframes recapSlideIn {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.round-recap-card .recap-title {
+  font-family: var(--font-title);
+  font-size: 18px;
+  color: var(--color-accent-gold);
+  text-align: center;
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+  border-bottom: 1px solid rgba(201, 169, 97, 0.3);
+  padding-bottom: 6px;
+}
+
+.round-recap-card .recap-section {
+  font-size: 13px;
+  color: var(--color-text-main);
+  line-height: 1.6;
+  margin: 6px 0;
 }
 
 /* ---------- Modal / Accusation ---------- */
@@ -501,18 +659,75 @@
   margin-bottom: 12px;
 }
 
+/* Accusation modal enhancements */
+.accusation-modal .accusation-evidence,
+.accusation-modal .accusation-consequences {
+  background: rgba(10, 20, 40, 0.06);
+  border: 1px solid rgba(201, 169, 97, 0.2);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  margin: 10px 0;
+  text-align: left;
+}
+
+.accusation-modal .evidence-title,
+.accusation-modal .consequences-title {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--color-accent-gold);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.accusation-modal .accusation-consequences p {
+  font-size: 12px;
+  margin: 4px 0;
+  line-height: 1.5;
+}
+
+.accusation-modal .accusation-prompt {
+  font-size: 13px;
+  color: var(--color-text-main);
+  margin-top: 14px;
+}
+
 #accusation-options {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin: 16px 0;
+  margin: 12px 0;
 }
 
-#accusation-options button {
+.accusation-option {
   width: 100%;
-  text-align: center;
-  padding: 10px;
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(244, 232, 208, 0.6);
+  border: 1px solid rgba(201, 169, 97, 0.35);
+}
+
+.accusation-option:hover:not(:disabled) {
+  background: var(--color-accent-warm);
+}
+
+.accusation-option .accusation-name {
+  font-weight: bold;
   font-size: 14px;
+}
+
+.accusation-option .accusation-desc {
+  font-size: 11px;
+  color: var(--color-text-faded);
+  line-height: 1.4;
+}
+
+.accusation-option:hover:not(:disabled) .accusation-desc {
+  color: rgba(10, 20, 40, 0.8);
 }
 
 /* ---------- Narrative Overlay ---------- */

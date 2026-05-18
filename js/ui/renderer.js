@@ -28,6 +28,7 @@ export class Renderer {
               <span>筹码: <b id="opponent-chips">0</b></span>
               <span>流露: <b id="opponent-leak">0</b></span>
             </div>
+            <div id="opponent-rules"></div>
             <div id="opponent-hand" class="card-area"></div>
           </div>
         </div>
@@ -38,6 +39,8 @@ export class Renderer {
             <span>轮次: <span id="round-display">1/5</span></span>
             <span id="phase-display" class="phase-badge">准备中</span>
           </div>
+          <div id="betting-hint"></div>
+          <div id="round-recap"></div>
           <div id="tell-panel"></div>
         </div>
 
@@ -63,10 +66,13 @@ export class Renderer {
       opponentChips: document.getElementById('opponent-chips'),
       opponentLeak: document.getElementById('opponent-leak'),
       opponentHand: document.getElementById('opponent-hand'),
+      opponentRules: document.getElementById('opponent-rules'),
       pot: document.getElementById('pot-display'),
       round: document.getElementById('round-display'),
       phase: document.getElementById('phase-display'),
       tellPanel: document.getElementById('tell-panel'),
+      bettingHint: document.getElementById('betting-hint'),
+      roundRecap: document.getElementById('round-recap'),
       playerHand: document.getElementById('player-hand'),
       playerChips: document.getElementById('player-chips'),
       playerBet: document.getElementById('player-bet'),
@@ -80,10 +86,12 @@ export class Renderer {
   }
 
   render(state, cheatsData, opponentConfig) {
+    this.cheatsData = cheatsData;
+    this.opponentConfig = opponentConfig;
     this.renderOpponent(state, opponentConfig);
     this.renderPublic(state);
     this.renderPlayer(state);
-    this.renderTells(state);
+    this.renderTells(state, cheatsData);
     this.renderControls(state, cheatsData);
     this.renderLog(state);
   }
@@ -107,6 +115,14 @@ export class Renderer {
       this.elements.opponentLeak.classList.add('leak-warning');
     } else {
       this.elements.opponentLeak.classList.remove('leak-warning');
+    }
+
+    // Opponent rules hint
+    const rulesEl = this.elements.opponentRules;
+    if (opponentConfig.rule_hint) {
+      rulesEl.innerHTML = `<div class="opponent-rules-card"><span class="rules-label">对手特性</span><span class="rules-text">${opponentConfig.rule_hint}</span></div>`;
+    } else {
+      rulesEl.innerHTML = '';
     }
 
     // render opponent cards (backs) with staggered entrance on deal
@@ -161,6 +177,22 @@ export class Renderer {
     phaseEl.textContent = newPhase;
 
     this.elements.matchInfo.textContent = `第 ${state.round} 轮 / ${state.maxRounds}`;
+
+    // Round recap visibility
+    if (state.phase === 'ROUND_END' || state.state === 'MATCH_END') {
+      this.renderRoundRecap(state, this.cheatsData);
+    } else {
+      this.elements.roundRecap.innerHTML = '';
+      this.elements.roundRecap.style.display = 'none';
+    }
+
+    // Betting hint visibility
+    if (state.phase === 'BET_1' || state.phase === 'BET_2') {
+      this.elements.bettingHint.style.display = 'block';
+    } else {
+      this.elements.bettingHint.innerHTML = '';
+      this.elements.bettingHint.style.display = 'none';
+    }
   }
 
   renderPlayer(state) {
@@ -235,7 +267,17 @@ export class Renderer {
     }
   }
 
-  renderTells(state) {
+  findCheatsForTell(text, cheatsData) {
+    const matches = [];
+    for (const [key, cheat] of Object.entries(cheatsData || {})) {
+      if (cheat.tell_pool && cheat.tell_pool.some(t => t.text === text)) {
+        matches.push(cheat.name_display);
+      }
+    }
+    return matches;
+  }
+
+  renderTells(state, cheatsData) {
     const panel = this.elements.tellPanel;
     const previousCount = panel.children.length;
     panel.innerHTML = '';
@@ -248,7 +290,19 @@ export class Renderer {
       const t = tells[idx];
       const entry = document.createElement('div');
       entry.className = 'tell-entry' + (t.isReal ? '' : ' noise');
-      entry.textContent = t.text;
+
+      const cheatMatches = this.findCheatsForTell(t.text, cheatsData);
+      const cheatHint = cheatMatches.length > 0 ? `可能与「${cheatMatches.join(' / ')}」有关` : '来源不明';
+      const confidence = t.isReal ? '线索强度：明显' : '线索强度：模糊';
+
+      entry.innerHTML = `
+        <div class="tell-text">${t.text}</div>
+        <div class="tell-meta">
+          <span class="tell-cheat-hint">${cheatHint}</span>
+          <span class="tell-confidence">${confidence}</span>
+        </div>
+      `;
+
       // Only animate newly added tells (assume tells are appended)
       if (idx >= previousCount - (tells.length - previousCount > 0 ? 1 : 0) && previousCount > 0) {
         entry.style.animationDelay = '0ms';
@@ -286,10 +340,14 @@ export class Renderer {
         const cd = state.player.cooldowns[key] || 0;
         if (cd > 0) {
           btn.classList.add('cooldown');
-          btn.textContent = `${cheat.name_display} (CD:${cd})`;
+          btn.innerHTML = `<span class="cheat-name">${cheat.name_display}</span><span class="cheat-cd">CD:${cd}</span>`;
           btn.disabled = true;
         } else {
-          btn.textContent = cheat.name_display;
+          const meta = [];
+          if (cheat.benefit) meta.push(`利：${cheat.benefit}`);
+          if (cheat.risk) meta.push(`险：${cheat.risk}`);
+          if (cheat.use_case) meta.push(`用：${cheat.use_case}`);
+          btn.innerHTML = `<span class="cheat-name">${cheat.name_display}</span>${meta.length > 0 ? `<span class="cheat-meta">${meta.join(' | ')}</span>` : ''}`;
           if (this.selectedCheat === key) btn.classList.add('active');
           btn.addEventListener('click', () => {
             this.selectedCheat = key;
@@ -310,6 +368,12 @@ export class Renderer {
 
     // Betting controls
     if (state.phase === 'BET_1' || state.phase === 'BET_2') {
+      // Betting hint
+      const hint = this.buildBettingHint(state);
+      if (hint) {
+        this.elements.bettingHint.innerHTML = `<div class="betting-hint-card">${hint}</div>`;
+      }
+
       const checkBtn = document.createElement('button');
       checkBtn.textContent = '过牌';
       checkBtn.addEventListener('click', () => {
@@ -368,7 +432,7 @@ export class Renderer {
       accuseBtn.className = 'danger';
       accuseBtn.textContent = '我看穿你了！';
       accuseBtn.addEventListener('click', () => {
-        this.showAccusationModal(cheatsData);
+        this.showAccusationModal(state, cheatsData);
       });
       controls.appendChild(accuseBtn);
 
@@ -402,14 +466,138 @@ export class Renderer {
     }
   }
 
-  showAccusationModal(cheatsData) {
+  buildBettingHint(state) {
+    const p = state.player;
+    const opp = state.opponent;
+    const settings = state.settings || {};
+    const ev = evaluateHand(p.hand);
+    const rank = ev ? ev.rank : 0;
+
+    const hints = [];
+    const toCall = Math.max(0, opp.currentBet - p.currentBet);
+    if (settings.ante && settings.maxRaise) {
+      hints.push(`本程底注 ${settings.ante}，最大加注 ${settings.maxRaise}`);
+    }
+    if (toCall > 0) {
+      hints.push(`当前需跟注 <span class="hint-warn">${toCall}</span> 才能继续`);
+    }
+    if (rank >= 7) {
+      hints.push('牌力<span class="hint-strong">强劲</span>，可考虑施压');
+    } else if (rank >= 4) {
+      hints.push('牌力<span class="hint-mid">中等</span>，视对手反应行动');
+    } else {
+      hints.push('牌力<span class="hint-weak">较弱</span>，建议谨慎');
+    }
+
+    if (p.leak >= 60) {
+      hints.push('你的<span class="hint-danger">流露过高</span>，小心被看穿');
+    } else if (p.leak >= 30) {
+      hints.push('你的<span class="hint-warn">流露渐增</span>，注意收敛');
+    }
+
+    if (opp.leak >= 60) {
+      const pressure = settings.maxRaise ? `可用最高 ${settings.maxRaise} 施压` : '可能是施压时机';
+      hints.push(`对手<span class="hint-strong">破绽百出</span>，${pressure}`);
+    }
+
+    const realTells = p.seenTells.filter(t => t.isReal).length;
+    if (realTells >= 2) {
+      hints.push(`已观察到<span class="hint-strong">${realTells}处明显破绽</span>`);
+    } else if (realTells === 1) {
+      hints.push('观察到<span class="hint-warn">1处破绽</span>');
+    } else if (p.seenTells.length > 0) {
+      hints.push('线索尚<span class="hint-weak">不明确</span>');
+    }
+
+    return hints.join(' · ');
+  }
+
+  renderRoundRecap(state, cheatsData) {
+    const container = this.elements.roundRecap;
+    container.style.display = 'block';
+    const p = state.player;
+    const opp = state.opponent;
+
+    const cheat = p.selectedCheat ? (cheatsData || {})[p.selectedCheat] : null;
+    const cheatLine = cheat
+      ? `你的暗手：<b>${cheat.name_display}</b> — ${cheat.description}`
+      : '你未使用暗手。';
+
+    const realTells = p.seenTells.filter(t => t.isReal).length;
+    const totalTells = p.seenTells.length;
+    const evidenceLine = totalTells > 0
+      ? `观察到的线索：${totalTells} 条（${realTells} 条较为明显）`
+      : '本轮未观察到任何线索。';
+
+    let resultLine = '';
+    let causeEffect = '';
+    if (state.accusationResult) {
+      const res = state.accusationResult;
+      if (res.correct && res.winner === 'player') {
+        resultLine = '你指控成功，抓住了对手的破绽。';
+        causeEffect = '对手额外暴露，你赢得本轮彩池。';
+      } else if (res.correct && res.winner === 'opponent') {
+        resultLine = '对手指控成功，你的暗手被看穿。';
+        causeEffect = '你额外暴露，对手赢得本轮彩池。';
+      } else if (!res.correct && res.winner === 'player') {
+        resultLine = '对手指控失败，反被你利用。';
+        causeEffect = '你赢得本轮彩池。';
+      } else {
+        resultLine = '你指控失败，反被对手利用。';
+        causeEffect = '对手赢得本轮彩池。';
+      }
+    } else if (p.folded) {
+      resultLine = '你选择弃牌。';
+      causeEffect = '对手赢得本轮彩池。';
+    } else if (opp.folded) {
+      resultLine = '对手弃牌。';
+      causeEffect = '你赢得本轮彩池。';
+    } else if (state.roundWinner === 'player') {
+      resultLine = '摊牌结果：你的牌力更强。';
+      causeEffect = '你赢得本轮彩池。';
+    } else if (state.roundWinner === 'opponent') {
+      resultLine = '摊牌结果：对手牌力更强。';
+      causeEffect = '对手赢得本轮彩池。';
+    } else {
+      resultLine = '摊牌结果：平局。';
+      causeEffect = '彩池平分。';
+    }
+
+    container.innerHTML = `
+      <div class="round-recap-card">
+        <div class="recap-title">本轮复盘</div>
+        <div class="recap-section">${cheatLine}</div>
+        <div class="recap-section">${evidenceLine}</div>
+        <div class="recap-section"><b>${resultLine}</b> ${causeEffect}</div>
+      </div>
+    `;
+  }
+
+  showAccusationModal(state, cheatsData) {
     const modal = this.elements.modalLayer;
     modal.style.display = 'flex';
+
+    // Build evidence summary from current public state
+    const tells = state.player.seenTells || [];
+    const realTells = tells.filter(t => t.isReal).length;
+    const evidenceSummary = tells.length > 0
+      ? `你已观察到 ${tells.length} 条线索，其中 ${realTells} 条较为明显。`
+      : '你尚未观察到任何线索。';
+
     modal.innerHTML = `
       <div class="modal-overlay">
-        <div class="modal-content">
+        <div class="modal-content accusation-modal">
           <h2>我看穿你了！</h2>
-          <p>选择你认为对方使用的暗手：</p>
+          <div class="accusation-evidence">
+            <div class="evidence-title">当前证据</div>
+            <p>${evidenceSummary}</p>
+          </div>
+          <div class="accusation-consequences">
+            <div class="consequences-title">后果</div>
+            <p><b>指控成功</b>：对手额外暴露，你赢得本轮彩池。</p>
+            <p><b>指控失败</b>：对手赢得本轮彩池，你反被利用。</p>
+          </div>
+          <p class="accusation-prompt">选择你认为对方使用的暗手：</p>
           <div id="accusation-options"></div>
           <button id="accusation-cancel">取消</button>
         </div>
@@ -418,7 +606,8 @@ export class Renderer {
 
     const options = document.getElementById('accusation-options');
     const noneBtn = document.createElement('button');
-    noneBtn.textContent = '对方未使用任何暗手';
+    noneBtn.className = 'accusation-option';
+    noneBtn.innerHTML = '<span class="accusation-name">对方未使用任何暗手</span><span class="accusation-desc">认为对手本轮诚实</span>';
     noneBtn.addEventListener('click', () => {
       modal.style.display = 'none';
       if (this.onAction) this.onAction('accuse', null);
@@ -427,7 +616,8 @@ export class Renderer {
 
     for (const [key, cheat] of Object.entries(cheatsData)) {
       const btn = document.createElement('button');
-      btn.textContent = cheat.name_display;
+      btn.className = 'accusation-option';
+      btn.innerHTML = `<span class="accusation-name">${cheat.name_display}</span><span class="accusation-desc">${cheat.description}</span>`;
       btn.addEventListener('click', () => {
         modal.style.display = 'none';
         if (this.onAction) this.onAction('accuse', key);
