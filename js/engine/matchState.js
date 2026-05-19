@@ -1,5 +1,5 @@
 import { createDeck, shuffle, deal } from './deck.js';
-import { evaluateHand, compareHands } from './handEvaluator.js';
+import { compareHoldemHands } from './handEvaluator.js';
 import { CheatEngine } from './cheats.js';
 import { TellEngine } from './tells.js';
 import { BettingEngine } from './betting.js';
@@ -24,6 +24,7 @@ export class MatchState {
     this.maxRounds = balanceConfig.global.max_rounds_per_match;
     this.pot = 0;
     this.deck = [];
+    this.communityCards = [];
 
     this.player = {
       chips: this.settings.player_chips,
@@ -36,7 +37,6 @@ export class MatchState {
       lastCheatExtra: null,
       leak: 0,
       folded: false,
-      drawCount: 0,
       seenTells: [],
       disguiseActive: false,
       suspicion: 0,
@@ -59,7 +59,6 @@ export class MatchState {
       lastCheatExtra: null,
       leak: 0,
       folded: false,
-      drawCount: 0,
       seenTells: [],
       disguiseActive: false,
       suspicion: 0,
@@ -103,13 +102,13 @@ export class MatchState {
     this.pot = 0;
     this.player.hand = [];
     this.opponent.hand = [];
+    this.communityCards = [];
     this.player.currentBet = 0;
     this.player.totalBet = 0;
     this.player.activeCheats = [];
     this.player.selectedCheat = null;
     this.player.lastCheatExtra = null;
     this.player.folded = false;
-    this.player.drawCount = 0;
     this.player.seenTells = [];
     this.player.disguiseActive = false;
     this.player.lastSuspicionChange = null;
@@ -125,7 +124,6 @@ export class MatchState {
     this.opponent.selectedCheat = null;
     this.opponent.lastCheatExtra = null;
     this.opponent.folded = false;
-    this.opponent.drawCount = 0;
     this.opponent.seenTells = [];
     this.opponent.disguiseActive = false;
     this.opponent.lastSuspicionChange = null;
@@ -157,10 +155,10 @@ export class MatchState {
 
     // deal
     this.deck = shuffle(createDeck());
-    this.player.hand = deal(this.deck, 5);
-    this.opponent.hand = deal(this.deck, 5);
+    this.player.hand = deal(this.deck, 2);
+    this.opponent.hand = deal(this.deck, 2);
 
-    this.logEvent(`第 ${this.round} 轮开始。底注 ${ante}。`);
+    this.logEvent(`第 ${this.round} 轮开始。双方各收两张私牌，底注 ${ante}。`);
     this.phase = 'CHEAT_SELECTION';
   }
 
@@ -302,13 +300,13 @@ export class MatchState {
       const peeked = this.peekedOpponentCard;
       if (peeked && peeked.card) this.logEvent(`你窥见了对手的一张暗牌：${this.formatCard(peeked.card)}。`);
     } else if (cheat.effect === 'card_counting') {
-      this.logEvent(extra.cardCountingResult ? '你默数牌堆：顶上三张里有 A 或 K。' : '你默数牌堆：顶上三张里没有 A 或 K。');
+      this.logEvent(extra.cardCountingResult ? '你默数牌堆：即将翻出的公共牌里有 A 或 K 的影子。' : '你默数牌堆：即将翻出的公共牌里没有 A 或 K 的影子。');
     } else if (cheat.effect === 'disguise') {
       this.logEvent('你把一张普通的牌说得更大了。');
     } else if (cheat.effect === 'smoke') {
       this.logEvent('你故作镇定，本轮流露暴露率降低。');
     } else if (cheat.effect === 'second_deal') {
-      this.logEvent('你回避了牌堆顶端，悄悄拨过一张牌。');
+      this.logEvent('你回避了牌堆顶端，让下一张公共牌从第二层滑出。');
     } else if (cheat.effect === 'swap_one') {
       this.logEvent('你偷换了一张措辞，也偷换了一张牌。');
     }
@@ -402,7 +400,7 @@ export class MatchState {
       const key = this.phase === 'BET_1' ? 'bet1Settled' : 'bet2Settled';
       if (this[key]) {
         if (this.phase === 'BET_1') {
-          this.phase = 'DRAW';
+          this.revealCommunityCards();
           this.bet1Settled = false;
         } else {
           this.phase = 'ACCUSATION_WINDOW';
@@ -417,38 +415,15 @@ export class MatchState {
     return { success: true };
   }
 
-  drawCards(side, indices) {
-    if (this.phase !== 'DRAW') return { success: false, error: 'Not in draw phase' };
-    if (indices.length > 3) return { success: false, error: 'Can only draw up to 3 cards' };
-
-    const state = side === 'player' ? this.player : this.opponent;
-    const newCards = deal(this.deck, indices.length);
-    for (let i = 0; i < indices.length; i++) {
-      state.hand[indices[i]] = newCards[i];
+  revealCommunityCards() {
+    if (this.communityCards.length === 0) {
+      this.communityCards = deal(this.deck, 5);
+      this.logEvent(`桌面翻开五张公共牌：${this.communityCards.map(card => this.formatCard(card)).join('、')}。`);
     }
-    state.drawCount = indices.length;
-
-    // invalidate peek if opponent drew away the revealed card
-    if (side === 'opponent' && this.peekedOpponentCard) {
-      if (indices.includes(this.peekedOpponentCard.index)) {
-        this.peekedOpponentCard = null;
-      }
-    }
-
-    // if both have drawn, move to bet 2
-    if (this.player.drawCount !== undefined && this.opponent.drawCount !== undefined) {
-      // In this simplified flow, we track if both sides have acted.
-      // For the prototype, we auto-resolve opponent draw after player draw.
-    }
-
-    return { success: true };
-  }
-
-  advanceToBet2() {
-    if (this.phase !== 'DRAW') return;
     this.phase = 'BET_2';
     this.player.currentBet = 0;
     this.opponent.currentBet = 0;
+    this.bet2Settled = false;
   }
 
   makeAccusation(side, targetCheatId) {
@@ -526,8 +501,7 @@ export class MatchState {
         multiplier
       };
     } else {
-      // showdown by hand strength
-      const cmp = compareHands(this.player.hand, this.opponent.hand);
+      const cmp = compareHoldemHands(this.player.hand, this.opponent.hand, this.communityCards);
       if (cmp > 0) {
         this.player.chips += this.pot;
         this.roundWinner = 'player';
@@ -605,6 +579,7 @@ export class MatchState {
       round: this.round,
       maxRounds: this.maxRounds,
       pot: this.pot,
+      communityCards: this.communityCards,
       settings: {
         ante: this.settings.ante,
         maxRaise: this.settings.max_raise,
@@ -620,7 +595,6 @@ export class MatchState {
         currentBet: this.player.currentBet,
         leak: this.player.leak,
         folded: this.player.folded,
-        drawCount: this.player.drawCount,
         seenTells: this.player.seenTells.map(tell => this.getPublicTell(tell)),
         selectedCheat: this.player.selectedCheat,
         lastCheatExtra: this.player.lastCheatExtra,
@@ -640,7 +614,6 @@ export class MatchState {
         currentBet: this.opponent.currentBet,
         leak: roundEnded ? this.opponent.leak : null,
         folded: this.opponent.folded,
-        drawCount: this.opponent.drawCount,
         seenTells: this.opponent.seenTells.map(tell => this.getPublicTell(tell)),
         selectedCheat: roundEnded ? this.opponent.selectedCheat : null,
         lastCheatExtra: roundEnded ? this.opponent.lastCheatExtra : null,
@@ -659,6 +632,8 @@ export class MatchState {
         playerCheatName: this.getCheatName(this.player.selectedCheat),
         opponentCheatId: this.opponent.selectedCheat,
         opponentCheatName: this.getCheatName(this.opponent.selectedCheat),
+        opponentHand: this.opponent.hand,
+        communityCards: this.communityCards,
         playerTells: this.player.seenTells.map(tell => this.getRevealTell(tell))
       } : null,
       accusationWindowOpen: this.accusationWindowOpen,

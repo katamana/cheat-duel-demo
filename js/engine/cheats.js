@@ -36,21 +36,14 @@ export class CheatEngine {
     } else if (cheat.effect === 'smoke') {
       extra = { smoke: true };
     } else if (cheat.effect === 'second_deal') {
-      if (sideState.hand.length > 0 && deck.length > 1) {
-        deck.shift();
-        const card = deck.shift();
-        const idx = sideState.hand.reduce((lowestIndex, currentCard, currentIndex, hand) => {
-          return currentCard.value < hand[lowestIndex].value ? currentIndex : lowestIndex;
-        }, 0);
-        if (card) {
-          deck.push(sideState.hand[idx]);
-          sideState.hand[idx] = card;
-        }
-        extra = { secondDealt: true, replacedIndex: idx };
+      if (deck.length > 1) {
+        const skipped = deck.shift();
+        deck.push(skipped);
+        extra = { secondDealt: true };
       }
     } else if (cheat.effect === 'card_counting') {
-      const topThree = deck.slice(0, 3);
-      const hasHigh = topThree.some(c => c.value >= 13);
+      const upcomingBoard = deck.slice(0, 5);
+      const hasHigh = upcomingBoard.some(c => c.value >= 13);
       extra = { cardCountingResult: hasHigh };
     }
 

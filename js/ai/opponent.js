@@ -62,13 +62,6 @@ export class AIOpponent {
     return { accuse: false };
   }
 
-  decideDraw(handStrength) {
-    if (handStrength < 0.3) return [0, 1, 2];
-    if (handStrength < 0.5) return [0, 1];
-    if (handStrength < 0.7) return [0];
-    return [];
-  }
-
   evaluateHandStrength(hand, evaluator) {
     const ev = evaluator(hand);
     // normalize 0-1 roughly

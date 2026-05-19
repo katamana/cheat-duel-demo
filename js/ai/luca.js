@@ -70,15 +70,4 @@ export class LucaAI extends AIOpponent {
     if (mask.id === 'king') maskContext.suspicion = Math.max(0, (maskContext.suspicion || 0) - 8);
     return super.decideAccusation(seenTells, threshold ?? mask.accusationThreshold, maskContext);
   }
-
-  decideDraw(handStrength) {
-    const mask = this.getActiveConfig();
-    if (mask.id === 'maiden') {
-      // aggressive: draw more
-      if (handStrength < 0.5) return [0, 1, 2];
-      if (handStrength < 0.7) return [0, 1];
-      return [];
-    }
-    return super.decideDraw(handStrength);
-  }
 }

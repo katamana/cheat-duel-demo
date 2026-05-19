@@ -24,7 +24,8 @@ function isFlush(hand) {
 }
 
 function isStraight(hand) {
-  const values = hand.map(c => c.value).sort((a, b) => a - b);
+  const values = [...new Set(hand.map(c => c.value))].sort((a, b) => a - b);
+  if (values.length !== 5) return false;
   // normal straight
   for (let i = 1; i < values.length; i++) {
     if (values[i] !== values[i - 1] + 1) {
@@ -37,9 +38,41 @@ function isStraight(hand) {
 }
 
 function straightHighCard(hand) {
-  const values = hand.map(c => c.value).sort((a, b) => a - b);
+  const values = [...new Set(hand.map(c => c.value))].sort((a, b) => a - b);
   if (JSON.stringify(values) === JSON.stringify([2,3,4,5,14])) return 5;
   return values[values.length - 1];
+}
+
+function combinations(cards, size) {
+  const results = [];
+
+  function walk(start, picked) {
+    if (picked.length === size) {
+      results.push(picked.slice());
+      return;
+    }
+    for (let i = start; i <= cards.length - (size - picked.length); i++) {
+      picked.push(cards[i]);
+      walk(i + 1, picked);
+      picked.pop();
+    }
+  }
+
+  walk(0, []);
+  return results;
+}
+
+function compareEvaluations(evalA, evalB) {
+  if (evalA.rank !== evalB.rank) {
+    return evalA.rank > evalB.rank ? 1 : -1;
+  }
+  const length = Math.max(evalA.tiebreakers.length, evalB.tiebreakers.length);
+  for (let i = 0; i < length; i++) {
+    const a = evalA.tiebreakers[i] || 0;
+    const b = evalB.tiebreakers[i] || 0;
+    if (a !== b) return a > b ? 1 : -1;
+  }
+  return 0;
 }
 
 export function evaluateHand(hand) {
@@ -89,15 +122,45 @@ export function evaluateHand(hand) {
 export function compareHands(handA, handB) {
   const evalA = evaluateHand(handA);
   const evalB = evaluateHand(handB);
-  if (evalA.rank !== evalB.rank) {
-    return evalA.rank > evalB.rank ? 1 : -1;
+  return compareEvaluations(evalA, evalB);
+}
+
+export function evaluateBestHand(cards) {
+  if (!cards || cards.length < 5) {
+    return { rank: -1, rankName: '未成牌', tiebreakers: [], cards: [] };
   }
-  for (let i = 0; i < evalA.tiebreakers.length; i++) {
-    if (evalA.tiebreakers[i] !== evalB.tiebreakers[i]) {
-      return evalA.tiebreakers[i] > evalB.tiebreakers[i] ? 1 : -1;
+
+  let best = null;
+  for (const combo of combinations(cards, 5)) {
+    const current = evaluateHand(combo);
+    if (!best || compareEvaluations(current, best) > 0) {
+      best = { ...current, cards: combo };
     }
   }
-  return 0;
+  return best;
+}
+
+export function compareHoldemHands(handA, handB, communityCards) {
+  const evalA = evaluateBestHand([...(handA || []), ...(communityCards || [])]);
+  const evalB = evaluateBestHand([...(handB || []), ...(communityCards || [])]);
+  return compareEvaluations(evalA, evalB);
+}
+
+export function estimateHoldemStrength(holeCards, communityCards = []) {
+  const cards = [...(holeCards || []), ...(communityCards || [])];
+  if (cards.length >= 5) {
+    const ev = evaluateBestHand(cards);
+    return ev.rank / 8 + (ev.tiebreakers[0] || 0) / 1400;
+  }
+
+  if (!holeCards || holeCards.length === 0) return 0;
+  const values = holeCards.map(card => card.value).sort((a, b) => b - a);
+  const pairBonus = values.length >= 2 && values[0] === values[1] ? 0.28 : 0;
+  const highCard = (values[0] || 2) / 14 * 0.45;
+  const secondCard = (values[1] || 2) / 14 * 0.2;
+  const suitedBonus = holeCards.length >= 2 && holeCards[0].suit === holeCards[1].suit ? 0.06 : 0;
+  const connectorBonus = values.length >= 2 && Math.abs(values[0] - values[1]) <= 2 ? 0.04 : 0;
+  return Math.min(1, pairBonus + highCard + secondCard + suitedBonus + connectorBonus);
 }
 
 export function handRankToString(evalResult) {

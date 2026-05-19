@@ -1,5 +1,5 @@
 import { MatchState } from './engine/matchState.js';
-import { evaluateHand } from './engine/handEvaluator.js';
+import { estimateHoldemStrength } from './engine/handEvaluator.js';
 import { Renderer } from './ui/renderer.js';
 import { LighthouseKeeperAI } from './ai/lighthouseKeeper.js';
 import { LucaAI } from './ai/luca.js';
@@ -134,20 +134,20 @@ class GameController {
         this.runAIBet1();
         break;
       case 'bet':
-        this.match.bet('player', payload.action, payload.amount || 0);
-        this.updateUI();
-        if (this.match.phase === 'BET_1' || this.match.phase === 'BET_2') {
-          this.runAIBetResponse();
-        } else if (this.match.phase === 'ACCUSATION_WINDOW') {
-          this.runAIAccusation();
-        } else if (this.match.phase === 'SHOWDOWN' || this.match.phase === 'ROUND_END') {
-          this.handleRoundEnd();
+        {
+          const previousPhase = this.match.phase;
+          this.match.bet('player', payload.action, payload.amount || 0);
+          this.updateUI();
+          if (previousPhase === 'BET_1' && this.match.phase === 'BET_2') {
+            this.runAIBet2();
+          } else if (this.match.phase === 'BET_1' || this.match.phase === 'BET_2') {
+            this.runAIBetResponse();
+          } else if (this.match.phase === 'ACCUSATION_WINDOW') {
+            this.runAIAccusation();
+          } else if (this.match.phase === 'SHOWDOWN' || this.match.phase === 'ROUND_END') {
+            this.handleRoundEnd();
+          }
         }
-        break;
-      case 'draw':
-        this.match.drawCards('player', payload);
-        this.updateUI();
-        this.runAIDraw();
         break;
       case 'accuse':
         this.match.makeAccusation('player', payload);
@@ -197,7 +197,7 @@ class GameController {
         }
       }
     }
-    const handStrength = ai.evaluateHandStrength(this.match.opponent.hand, evaluateHand);
+    const handStrength = this.getOpponentHandStrength();
     const available = this.match.cheatEngine.getAvailableCheats(this.match.opponent);
     const cheatId = ai.decideCheat(handStrength, this.match.opponent.leak, available, this.match.opponent.seenTells);
     this.match.selectCheat('opponent', cheatId);
@@ -225,6 +225,10 @@ class GameController {
     return visibleTellPressure + suspicionPressure + betPressure + (this.match.player.disguiseActive ? 0.25 : 0);
   }
 
+  getOpponentHandStrength() {
+    return estimateHoldemStrength(this.match.opponent.hand, this.match.communityCards);
+  }
+
   getAIReadContext() {
     const ai = this.match.opponentAI;
     const activeConfig = ai.getActiveConfig ? ai.getActiveConfig() : this.match.opponentConfig;
@@ -242,7 +246,7 @@ class GameController {
     setTimeout(() => {
       if (!this.match || this.match.phase !== 'BET_1') return;
       const ai = this.match.opponentAI;
-      const handStrength = ai.evaluateHandStrength(this.match.opponent.hand, evaluateHand);
+      const handStrength = this.getOpponentHandStrength();
       const threat = this.getPlayerThreatLevel();
       const decision = ai.decideBet(handStrength, threat, this.match.opponent.currentBet, this.match.player.currentBet, this.match.opponent.chips, this.match.settings);
       this.match.bet('opponent', decision.action, decision.amount || 0);
@@ -254,11 +258,15 @@ class GameController {
     setTimeout(() => {
       if (!this.match || (this.match.phase !== 'BET_1' && this.match.phase !== 'BET_2')) return;
       const ai = this.match.opponentAI;
-      const handStrength = ai.evaluateHandStrength(this.match.opponent.hand, evaluateHand);
+      const handStrength = this.getOpponentHandStrength();
       const threat = this.getPlayerThreatLevel();
       const decision = ai.decideBet(handStrength, threat, this.match.opponent.currentBet, this.match.player.currentBet, this.match.opponent.chips, this.match.settings);
+      const previousPhase = this.match.phase;
       this.match.bet('opponent', decision.action, decision.amount || 0);
       this.updateUI();
+      if (previousPhase === 'BET_1' && this.match.phase === 'BET_2') {
+        this.runAIBet2();
+      }
       if (this.match.phase === 'ACCUSATION_WINDOW') {
         this.runAIAccusation();
       }
@@ -268,24 +276,11 @@ class GameController {
     }, 600);
   }
 
-  runAIDraw() {
-    setTimeout(() => {
-      if (!this.match || this.match.phase !== 'DRAW') return;
-      const ai = this.match.opponentAI;
-      const handStrength = ai.evaluateHandStrength(this.match.opponent.hand, evaluateHand);
-      const indices = ai.decideDraw(handStrength);
-      this.match.drawCards('opponent', indices);
-      this.match.advanceToBet2();
-      this.updateUI();
-      this.runAIBet2();
-    }, 800);
-  }
-
   runAIBet2() {
     setTimeout(() => {
       if (!this.match || this.match.phase !== 'BET_2') return;
       const ai = this.match.opponentAI;
-      const handStrength = ai.evaluateHandStrength(this.match.opponent.hand, evaluateHand);
+      const handStrength = this.getOpponentHandStrength();
       const threat = this.getPlayerThreatLevel();
       const decision = ai.decideBet(handStrength, threat, this.match.opponent.currentBet, this.match.player.currentBet, this.match.opponent.chips, this.match.settings);
       this.match.bet('opponent', decision.action, decision.amount || 0);

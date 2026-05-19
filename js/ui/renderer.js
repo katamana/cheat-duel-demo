@@ -1,4 +1,4 @@
-import { evaluateHand, handRankToString } from '../engine/handEvaluator.js';
+import { evaluateBestHand, estimateHoldemStrength, handRankToString } from '../engine/handEvaluator.js';
 
 export class Renderer {
   constructor(containerId) {
@@ -6,7 +6,6 @@ export class Renderer {
     this.elements = {};
     this.onAction = null;
     this.selectedCheat = null;
-    this.selectedCards = new Set();
     this.lastPhase = null;
     this.lastPot = null;
   }
@@ -40,6 +39,7 @@ export class Renderer {
             <span>轮次: <span id="round-display">1/5</span></span>
             <span id="phase-display" class="phase-badge">准备中</span>
           </div>
+          <div id="community-board" class="community-board"></div>
           <div id="betting-hint"></div>
           <div id="round-recap"></div>
           <div id="tell-panel"></div>
@@ -75,6 +75,7 @@ export class Renderer {
       pot: document.getElementById('pot-display'),
       round: document.getElementById('round-display'),
       phase: document.getElementById('phase-display'),
+      communityBoard: document.getElementById('community-board'),
       tellPanel: document.getElementById('tell-panel'),
       bettingHint: document.getElementById('betting-hint'),
       roundRecap: document.getElementById('round-recap'),
@@ -102,6 +103,30 @@ export class Renderer {
     this.renderTells(state, cheatsData);
     this.renderControls(state, cheatsData);
     this.renderLog(state);
+  }
+
+  createCard(card, { hidden = false, reveal = false, delay = null } = {}) {
+    const cardEl = document.createElement('div');
+    if (hidden || !card) {
+      cardEl.className = 'card back';
+      cardEl.textContent = '?';
+    } else {
+      const suitSymbols = { spades: '♠', hearts: '♥', clubs: '♣', diamonds: '♦' };
+      const suitColor = (card.suit === 'hearts' || card.suit === 'diamonds') ? '#9b3838' : '#2c2418';
+      cardEl.className = reveal ? 'card reveal' : 'card';
+      cardEl.innerHTML = `<div class="rank" style="color:${suitColor}">${card.rank}</div><div class="suit" style="color:${suitColor}">${suitSymbols[card.suit]}</div>`;
+    }
+    if (delay !== null) {
+      cardEl.classList.add('deal-in');
+      cardEl.style.animationDelay = `${delay}ms`;
+    }
+    return cardEl;
+  }
+
+  formatCardText(card) {
+    if (!card) return '?';
+    const suitSymbols = { spades: '♠', hearts: '♥', clubs: '♣', diamonds: '♦' };
+    return `${card.rank}${suitSymbols[card.suit] || ''}`;
   }
 
   renderOpponent(state, opponentConfig) {
@@ -142,24 +167,12 @@ export class Renderer {
     const currentCount = handEl.children.length;
     handEl.innerHTML = '';
     const peeked = opp.peekedCard;
-    const suitSymbols = { spades: '♠', hearts: '♥', clubs: '♣', diamonds: '♦' };
     for (let i = 0; i < opp.handCount; i++) {
-      const cardEl = document.createElement('div');
       if (peeked && peeked.index === i && peeked.card) {
-        const card = peeked.card;
-        const suitColor = (card.suit === 'hearts' || card.suit === 'diamonds') ? '#9b3838' : '#2c2418';
-        cardEl.className = 'card reveal';
-        cardEl.innerHTML = `<div class="rank" style="color:${suitColor}">${card.rank}</div><div class="suit" style="color:${suitColor}">${suitSymbols[card.suit]}</div>`;
+        handEl.appendChild(this.createCard(peeked.card, { reveal: true, delay: state.phase === 'DEAL' || currentCount === 0 ? i * 80 : null }));
       } else {
-        cardEl.className = 'card back';
-        cardEl.textContent = '?';
+        handEl.appendChild(this.createCard(null, { hidden: true, delay: state.phase === 'DEAL' || currentCount === 0 ? i * 80 : null }));
       }
-      // Staggered deal-in animation for new cards
-      if (state.phase === 'DEAL' || currentCount === 0) {
-        cardEl.classList.add('deal-in');
-        cardEl.style.animationDelay = `${i * 80}ms`;
-      }
-      handEl.appendChild(cardEl);
     }
   }
 
@@ -179,9 +192,8 @@ export class Renderer {
       DEAL: '发牌中',
       CHEAT_SELECTION: '选择暗手',
       TELL_REVEAL: '流露暴露',
-      BET_1: '第一次下注',
-      DRAW: '换牌阶段',
-      BET_2: '第二次下注',
+      BET_1: '私牌下注',
+      BET_2: '公共牌下注',
       ACCUSATION_WINDOW: '看穿窗口',
       SHOWDOWN: '摊牌结算',
       ROUND_END: '回合结束',
@@ -196,6 +208,7 @@ export class Renderer {
     }
     this.lastPhase = newPhase;
     phaseEl.textContent = newPhase;
+    this.renderCommunityBoard(state);
 
     this.elements.matchInfo.textContent = `第 ${state.round} 轮 / ${state.maxRounds}`;
 
@@ -216,6 +229,16 @@ export class Renderer {
     }
   }
 
+  renderCommunityBoard(state) {
+    const board = this.elements.communityBoard;
+    board.innerHTML = '<div class="board-label">公共牌</div>';
+    const cards = state.communityCards || [];
+    for (let i = 0; i < 5; i++) {
+      const card = cards[i];
+      board.appendChild(this.createCard(card, { hidden: !card, delay: card ? i * 70 : null }));
+    }
+  }
+
   renderPlayer(state) {
     const p = state.player;
     this.elements.playerChips.textContent = p.chips;
@@ -233,62 +256,24 @@ export class Renderer {
 
     playerLeakEl.parentElement?.classList.toggle('suspicion-warning', (p.suspicion || 0) >= 65);
 
-    // render player cards with entrance animation on deal
     const handEl = this.elements.playerHand;
     const isDealPhase = state.phase === 'DEAL';
     const wasEmpty = handEl.children.length === 0;
     handEl.innerHTML = '';
 
     for (let i = 0; i < p.hand.length; i++) {
-      const card = p.hand[i];
-      const el = document.createElement('div');
-      el.className = 'card';
-      const suitSymbols = { spades: '♠', hearts: '♥', clubs: '♣', diamonds: '♦' };
-      const suitColor = (card.suit === 'hearts' || card.suit === 'diamonds') ? '#9b3838' : '#2c2418';
-      el.innerHTML = `<div class="rank" style="color:${suitColor}">${card.rank}</div><div class="suit" style="color:${suitColor}">${suitSymbols[card.suit]}</div>`;
-
-      // Entrance animation for newly dealt cards
-      if (isDealPhase || wasEmpty) {
-        el.classList.add('deal-in');
-        el.style.animationDelay = `${i * 80}ms`;
-      }
-
-      // Interactive state for draw phase
-      const isDrawPhase = state.phase === 'DRAW';
-      if (isDrawPhase) {
-        el.setAttribute('data-interactive', 'true');
-        el.style.cursor = 'pointer';
-        if (this.selectedCards.has(i)) {
-          el.classList.add('selected');
-        }
-        el.addEventListener('click', () => {
-          if (this.selectedCards.has(i)) {
-            this.selectedCards.delete(i);
-          } else {
-            if (this.selectedCards.size < 3) {
-              this.selectedCards.add(i);
-            }
-          }
-          this.renderPlayer(state);
-        });
-      } else {
-        el.removeAttribute('data-interactive');
-      }
-
-      handEl.appendChild(el);
+      handEl.appendChild(this.createCard(p.hand[i], { delay: isDealPhase || wasEmpty ? i * 80 : null }));
     }
 
-    // hand evaluation hint
-    if (p.hand.length === 5) {
-      const ev = evaluateHand(p.hand);
-      const hint = document.createElement('div');
-      hint.className = 'small';
-      hint.style.textAlign = 'center';
-      hint.style.marginTop = '6px';
-      hint.style.width = '100%';
-      hint.textContent = `牌型: ${handRankToString(ev)}`;
-      handEl.appendChild(hint);
+    const hint = document.createElement('div');
+    hint.className = 'small hand-hint';
+    const community = state.communityCards || [];
+    if (p.hand.length + community.length >= 5) {
+      hint.textContent = `最佳牌型: ${handRankToString(evaluateBestHand([...p.hand, ...community]))}`;
+    } else {
+      hint.textContent = '私牌已定，等待公共牌翻开。';
     }
+    handEl.appendChild(hint);
   }
 
   renderSuspicion(state) {
@@ -476,27 +461,6 @@ export class Renderer {
       controls.appendChild(foldBtn);
     }
 
-    // Draw controls
-    if (state.phase === 'DRAW') {
-      const drawBtn = document.createElement('button');
-      drawBtn.className = 'primary';
-      drawBtn.textContent = `换牌 (${this.selectedCards.size}/3)`;
-      drawBtn.addEventListener('click', () => {
-        const indices = Array.from(this.selectedCards);
-        this.selectedCards.clear();
-        if (this.onAction) this.onAction('draw', indices);
-      });
-      controls.appendChild(drawBtn);
-
-      const passDrawBtn = document.createElement('button');
-      passDrawBtn.textContent = '不换牌';
-      passDrawBtn.addEventListener('click', () => {
-        this.selectedCards.clear();
-        if (this.onAction) this.onAction('draw', []);
-      });
-      controls.appendChild(passDrawBtn);
-    }
-
     // Accusation controls
     if (state.phase === 'ACCUSATION_WINDOW') {
       const accuseBtn = document.createElement('button');
@@ -558,8 +522,8 @@ export class Renderer {
     const p = state.player;
     const opp = state.opponent;
     const settings = state.settings || {};
-    const ev = evaluateHand(p.hand);
-    const rank = ev ? ev.rank : 0;
+    const strength = estimateHoldemStrength(p.hand, state.communityCards || []);
+    const boardOpen = (state.communityCards || []).length >= 5;
 
     const hints = [];
     const toCall = Math.max(0, opp.currentBet - p.currentBet);
@@ -569,12 +533,19 @@ export class Renderer {
     if (toCall > 0) {
       hints.push(`当前需跟注 <span class="hint-warn">${toCall}</span> 才能继续`);
     }
-    if (rank >= 7) {
-      hints.push('牌力<span class="hint-strong">强劲</span>，可考虑施压');
-    } else if (rank >= 4) {
-      hints.push('牌力<span class="hint-mid">中等</span>，视对手反应行动');
+    if (boardOpen) {
+      const ev = evaluateBestHand([...p.hand, ...(state.communityCards || [])]);
+      hints.push(`当前最佳牌型：<span class="hint-strong">${handRankToString(ev)}</span>`);
     } else {
-      hints.push('牌力<span class="hint-weak">较弱</span>，建议谨慎');
+      hints.push('公共牌未翻开，下注更多是在讲述私牌故事');
+    }
+
+    if (strength >= 0.72) {
+      hints.push('牌势<span class="hint-strong">强劲</span>，可考虑施压');
+    } else if (strength >= 0.45) {
+      hints.push('牌势<span class="hint-mid">可争</span>，视公共牌与对手反应行动');
+    } else {
+      hints.push('牌势<span class="hint-weak">偏弱</span>，建议谨慎');
     }
 
     if (p.leak >= 60) {
@@ -641,6 +612,12 @@ export class Renderer {
     const evidenceLine = revealTells.length > 0
       ? `线索回看：${realTells}/${totalTells} 条来自真实暗手。${realReveal || '没有真实破绽浮出。'}${noiseReveal ? ` 噪声：${noiseReveal}。` : ''}`
       : '本轮未观察到任何线索。';
+    const boardLine = reveal?.communityCards?.length
+      ? `公共牌：${reveal.communityCards.map(card => this.formatCardText(card)).join('、')}。`
+      : '公共牌尚未翻开。';
+    const opponentHandLine = reveal?.opponentHand?.length
+      ? `对手私牌：${reveal.opponentHand.map(card => this.formatCardText(card)).join('、')}。`
+      : '';
 
     let resultLine = '';
     let causeEffect = '';
@@ -692,6 +669,7 @@ export class Renderer {
         <div class="recap-section">${cheatLine}</div>
         <div class="recap-section">${executionLine}</div>
         <div class="recap-section">${opponentCheatLine}</div>
+        <div class="recap-section">${boardLine}${opponentHandLine ? ` ${opponentHandLine}` : ''}</div>
         <div class="recap-section">${evidenceLine}</div>
         <div class="recap-section"><b>${resultLine}</b> ${causeEffect}</div>
         <div class="recap-section recap-advice">${adviceLine}</div>
@@ -763,9 +741,9 @@ export class Renderer {
   getExecutionPrompt(cheatId) {
     const prompts = {
       peek: '对手的牌角短暂露出。你要记住它，也要把目光收回来。',
-      swap_one: '你的指尖靠近牌缝。越稳，换牌越像一次自然的整理。',
-      second_deal: '牌堆顶端有阻力。你需要让第二张牌像第一张那样滑出。',
-      card_counting: '三张牌在脑中一闪而过。记住高牌的影子，别念出声。',
+      swap_one: '你的指尖靠近私牌边缘。越稳，替换越像一次自然的整理。',
+      second_deal: '牌堆顶端有阻力。你要让下一张公共牌从第二层滑出。',
+      card_counting: '公共牌的影子在脑中一闪而过。记住高牌，别念出声。',
       disguise: '你要把一手普通牌说成一段更大的故事。',
       smoke: '你试着把呼吸、视线和话题都放慢一点。'
     };
@@ -775,17 +753,17 @@ export class Renderer {
   getExecutionChoices(cheatId) {
     const cleanText = {
       peek: '记住牌面，立刻收回视线。',
-      swap_one: '在牌缝合上前完成替换。',
-      second_deal: '让第二张牌无声滑出。',
-      card_counting: '只记高牌，不多停留。',
+      swap_one: '在私牌合上前完成替换。',
+      second_deal: '让公共牌从第二层无声滑出。',
+      card_counting: '只记即将翻出的高牌，不多停留。',
       disguise: '轻描淡写地夸大一句。',
       smoke: '平静呼吸，像什么都没发生。'
     };
     const shakyText = {
       peek: '多看了半拍，但还记得牌。',
-      swap_one: '动作慢了，牌还是换成了。',
-      second_deal: '拇指停了一下，仍拨过顶牌。',
-      card_counting: '默数出了声息，信息还在。',
+      swap_one: '动作慢了，私牌还是换成了。',
+      second_deal: '拇指停了一下，仍拨过顶层。',
+      card_counting: '默数出了声息，公共牌信息还在。',
       disguise: '声明偏大胆，压迫更强也更显眼。',
       smoke: '话题转得生硬，但遮住了一点痕迹。'
     };

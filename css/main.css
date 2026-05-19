@@ -298,6 +298,30 @@
   font-family: var(--font-ui);
 }
 
+.community-board {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  min-height: 108px;
+  padding: 8px 0 4px;
+  flex-wrap: wrap;
+}
+
+.board-label {
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-faded);
+  letter-spacing: 1px;
+}
+
+.hand-hint {
+  text-align: center;
+  margin-top: 6px;
+  width: 100%;
+}
+
 /* ---------- Tell Panel ---------- */
 #tell-panel {
   max-height: 140px;
