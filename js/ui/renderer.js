@@ -109,7 +109,7 @@ export class Renderer {
     const planetLabel = opponentConfig.planet ? ` · ${opponentConfig.planet}` : '';
     this.elements.opponentName.textContent = (opponentConfig.name || '对手') + planetLabel;
     this.elements.opponentChips.textContent = opp.chips;
-    this.elements.opponentLeak.textContent = opp.leak;
+    this.elements.opponentLeak.textContent = opp.leak ?? '??';
     this.elements.opponentSuspicion.textContent = `${opp.suspicion || 0} · ${opp.suspicionStage || '松弛'}`;
 
     // Scene differentiation by opponent identity
@@ -120,7 +120,7 @@ export class Renderer {
     }
 
     // Leak warning styling
-    if (opp.leak >= 60) {
+    if ((opp.leak || 0) >= 60) {
       this.elements.opponentLeak.classList.add('leak-warning');
     } else {
       this.elements.opponentLeak.classList.remove('leak-warning');

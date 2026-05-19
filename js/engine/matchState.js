@@ -641,7 +641,7 @@ export class MatchState {
         chips: this.opponent.chips,
         handCount: this.opponent.hand.length,
         currentBet: this.opponent.currentBet,
-        leak: this.opponent.leak,
+        leak: roundEnded ? this.opponent.leak : null,
         folded: this.opponent.folded,
         drawCount: this.opponent.drawCount,
         seenTells: this.opponent.seenTells.map(tell => this.getPublicTell(tell)),
