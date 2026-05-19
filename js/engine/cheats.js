@@ -25,8 +25,9 @@ export class CheatEngine {
     if (cheat.effect === 'swap_one') {
       if (sideState.hand.length > 0 && deck.length > 1) {
         const idx = Math.floor(Math.random() * sideState.hand.length);
+        const replacement = deck.splice(1, 1)[0];
         deck.push(sideState.hand[idx]);
-        sideState.hand[idx] = deck.shift();
+        sideState.hand[idx] = replacement;
         extra = { swappedIndex: idx };
       }
     } else if (cheat.effect === 'peek') {
