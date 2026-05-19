@@ -584,7 +584,6 @@ export class MatchState {
     return {
       id: tell.id,
       text: tell.text,
-      leak_amount: tell.leak_amount,
       visibleTags: tell.visibleTags || [],
       suspicionWeight: tell.suspicionWeight || 1,
       ambiguity: tell.ambiguity || 'medium',

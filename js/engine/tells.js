@@ -14,8 +14,16 @@ export class TellEngine {
     return tags.slice(0, 3);
   }
 
-  inferAmbiguity(weight, isReal) {
-    if (!isReal) return weight >= 2 ? 'medium' : 'high';
+  inferSuspicionWeight(text) {
+    let weight = 1;
+    if (/手|指|牌堆|抽牌|下注|默念|视线|眼/.test(text)) weight += 1;
+    if (/停|慢|奇怪|过分|变化|抖|心跳/.test(text)) weight += 1;
+    if (/边缘|磨损|挑选|压牌|点了几下/.test(text)) weight += 1;
+    return Math.max(1, Math.min(4, weight));
+  }
+
+  inferAmbiguity(weight, possibleCheats) {
+    if ((possibleCheats || []).length >= 3) return 'high';
     if (weight >= 3) return 'low';
     if (weight === 2) return 'medium';
     return 'high';
@@ -44,7 +52,8 @@ export class TellEngine {
   }
 
   buildTellPayload({ id, text, leakAmount, cheatId, isReal, cheatsData }) {
-    const suspicionWeight = Math.max(1, Math.min(4, Math.ceil((leakAmount || 4) / 4)));
+    const possibleCheats = this.inferPossibleCheats(text, cheatId, cheatsData);
+    const suspicionWeight = this.inferSuspicionWeight(text);
     return {
       id,
       text,
@@ -54,8 +63,8 @@ export class TellEngine {
       source: isReal ? 'tell' : 'noise',
       visibleTags: this.inferVisibleTags(text),
       suspicionWeight,
-      ambiguity: this.inferAmbiguity(suspicionWeight, isReal),
-      possibleCheats: this.inferPossibleCheats(text, cheatId, cheatsData)
+      ambiguity: this.inferAmbiguity(suspicionWeight, possibleCheats),
+      possibleCheats
     };
   }
 
