@@ -356,9 +356,6 @@ export class MatchState {
     if (this.player.leak >= this.balance.tells.leak_threshold_critical) {
       this.logEvent('你的流露值爆表了！');
     }
-    if (this.opponent.leak >= this.balance.tells.leak_threshold_critical) {
-      this.logEvent('对手的流露值爆表了！');
-    }
 
     this.phase = 'BET_1';
   }
